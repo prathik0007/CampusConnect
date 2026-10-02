@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +11,8 @@ import {
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { AppButton, AppTextInput } from '@/components/common';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -68,8 +68,9 @@ export default function RegisterScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
+            activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={22} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Student Registration</Text>
           <Text style={styles.headerSubtitle}>
@@ -81,111 +82,76 @@ export default function RegisterScreen() {
         <View style={styles.card}>
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.light.error} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Prathik Kumar"
-                placeholderTextColor="#9CA3AF"
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-          </View>
+          <AppTextInput
+            label="Full Name *"
+            placeholder="e.g. Prathik Kumar"
+            value={name}
+            onChangeText={setName}
+            icon="person-outline"
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Campus Email</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="student@campus.edu"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
+          <AppTextInput
+            label="Campus Email *"
+            placeholder="student@campus.edu"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            icon="mail-outline"
+          />
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Roll / USN No.</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="card-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="MCA2024042"
-                  placeholderTextColor="#9CA3AF"
-                  value={rollNumber}
-                  onChangeText={setRollNumber}
-                  autoCapitalize="characters"
-                />
-              </View>
+            <View style={{ flex: 1 }}>
+              <AppTextInput
+                label="Roll / USN No. *"
+                placeholder="MCA2024042"
+                value={rollNumber}
+                onChangeText={setRollNumber}
+                autoCapitalize="characters"
+                icon="card-outline"
+              />
             </View>
 
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Phone (Optional)</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="call-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="9876543210"
-                  placeholderTextColor="#9CA3AF"
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Department / Degree</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="business-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={department}
-                onChangeText={setDepartment}
+            <View style={{ flex: 1 }}>
+              <AppTextInput
+                label="Phone"
+                placeholder="9876543210"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                icon="call-outline"
               />
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Create Password</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Minimum 6 characters"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-          </View>
+          <AppTextInput
+            label="Department / Degree"
+            value={department}
+            onChangeText={setDepartment}
+            icon="business-outline"
+          />
 
-          <TouchableOpacity
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+          <AppTextInput
+            label="Create Password *"
+            placeholder="Minimum 6 characters"
+            value={password}
+            onChangeText={setPassword}
+            isPassword={true}
+            icon="lock-closed-outline"
+          />
+
+          <AppButton
+            title="Complete Registration"
             onPress={handleRegister}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Complete Registration</Text>
-            )}
-          </TouchableOpacity>
+            isLoading={isLoading}
+            size="lg"
+            style={styles.submitBtn}
+          />
 
           <View style={styles.footerLinkContainer}>
             <Text style={styles.footerText}>Already have an account? </Text>
@@ -204,122 +170,76 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.light.background,
   },
   scrollContent: {
-    padding: 24,
-    paddingTop: 48,
+    padding: Spacing.four,
+    paddingTop: Spacing.six,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: Spacing.four,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.light.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: Spacing.three,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: Typography.size.xxl,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
     marginTop: 4,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: Colors.light.card,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 14,
-    gap: 8,
+    backgroundColor: Colors.light.errorLight,
+    padding: Spacing.two,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.three,
+    gap: Spacing.one,
   },
   errorText: {
-    color: '#DC2626',
-    fontSize: 13,
+    color: Colors.light.errorText,
+    fontSize: Typography.size.sm,
     flex: 1,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.two,
   },
-  inputGroup: {
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 5,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-  },
-  inputIcon: {
-    marginRight: 6,
-  },
-  input: {
-    flex: 1,
-    height: 44,
-    fontSize: 14,
-    color: '#111827',
-  },
-  primaryButton: {
-    backgroundColor: '#2563EB',
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+  submitBtn: {
+    marginTop: Spacing.two,
   },
   footerLinkContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 18,
+    marginTop: Spacing.four,
   },
   footerText: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
   },
   linkText: {
-    fontSize: 13,
-    color: '#2563EB',
-    fontWeight: '700',
+    fontSize: Typography.size.sm,
+    color: Colors.light.primary,
+    fontWeight: Typography.weight.bold,
   },
 });

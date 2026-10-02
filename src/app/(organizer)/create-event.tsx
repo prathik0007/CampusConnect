@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -13,6 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EventCategory } from '@/types';
+import { AppButton, AppTextInput } from '@/components/common';
+import { CategoryChip } from '@/components/events';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 const CATEGORIES: EventCategory[] = [
   'Technical',
@@ -34,27 +36,32 @@ export default function CreateEventScreen() {
   const [capacity, setCapacity] = useState('100');
   const [description, setDescription] = useState('');
   const [bannerUploaded, setBannerUploaded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePublish = () => {
     if (!title.trim()) {
-      Alert.alert('Validation Error', 'Please enter an event title.');
+      Alert.alert('Missing Field', 'Please provide an event title.');
       return;
     }
     if (!venue.trim()) {
-      Alert.alert('Validation Error', 'Please specify the event venue.');
+      Alert.alert('Missing Field', 'Please specify the campus venue.');
       return;
     }
 
-    Alert.alert(
-      'Event Created Successfully',
-      `"${title}" has been published to the student catalog.`,
-      [
-        {
-          text: 'View in My Events',
-          onPress: () => router.push('/(organizer)/my-events'),
-        },
-      ]
-    );
+    setIsSubmitting(true);
+    setTimeout(() => {
+      setIsSubmitting(false);
+      Alert.alert(
+        'Event Published',
+        `"${title}" has been published and is now visible to all students.`,
+        [
+          {
+            text: 'View in My Events',
+            onPress: () => router.push('/(organizer)/my-events'),
+          },
+        ]
+      );
+    }, 600);
   };
 
   return (
@@ -67,127 +74,116 @@ export default function CreateEventScreen() {
         <TouchableOpacity
           style={[styles.bannerPicker, bannerUploaded && styles.bannerPickerUploaded]}
           onPress={() => setBannerUploaded(!bannerUploaded)}
+          activeOpacity={0.8}
         >
           <Ionicons
             name={bannerUploaded ? 'image' : 'cloud-upload-outline'}
             size={36}
-            color={bannerUploaded ? '#059669' : '#6B7280'}
+            color={bannerUploaded ? Colors.light.secondary : Colors.light.textSecondary}
           />
           <Text style={styles.bannerPickerTitle}>
-            {bannerUploaded ? 'Banner Image Selected (Tap to Change)' : 'Upload Event Poster / Banner'}
+            {bannerUploaded ? 'Event Poster Selected (Tap to Replace)' : 'Upload Event Poster / Banner'}
           </Text>
-          <Text style={styles.bannerPickerSub}>PNG, JPG up to 5MB (16:9 ratio recommended)</Text>
+          <Text style={styles.bannerPickerSub}>High quality landscape banner (16:9 ratio)</Text>
         </TouchableOpacity>
 
         {/* Title Input */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Event Title *</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="e.g. National Level Coding Bootcamp"
-            placeholderTextColor="#9CA3AF"
-            value={title}
-            onChangeText={setTitle}
-          />
-        </View>
+        <AppTextInput
+          label="Event Title *"
+          placeholder="e.g. National Hackathon 2026"
+          value={title}
+          onChangeText={setTitle}
+          icon="calendar-outline"
+        />
 
         {/* Category Selector */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+        <View style={styles.categoryContainer}>
+          <Text style={styles.label}>Event Category *</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
             {CATEGORIES.map((cat) => (
-              <TouchableOpacity
+              <CategoryChip
                 key={cat}
-                style={[
-                  styles.categoryChip,
-                  category === cat && styles.categoryChipActive,
-                ]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    category === cat && styles.categoryChipTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
+                category={cat}
+                isSelected={category === cat}
+                onPress={(selected) => setCategory(selected)}
+                size="md"
+              />
             ))}
           </ScrollView>
         </View>
 
-        {/* Venue & Capacity Row */}
+        {/* Venue & Max Capacity */}
         <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 2 }]}>
-            <Text style={styles.label}>Venue / Room *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Auditorium Hall A"
-              placeholderTextColor="#9CA3AF"
+          <View style={{ flex: 2 }}>
+            <AppTextInput
+              label="Venue / Room *"
+              placeholder="e.g. Main Auditorium"
               value={venue}
               onChangeText={setVenue}
+              icon="location-outline"
             />
           </View>
 
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Max Seats</Text>
-            <TextInput
-              style={styles.textInput}
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label="Max Seats"
               placeholder="100"
-              placeholderTextColor="#9CA3AF"
               value={capacity}
               onChangeText={setCapacity}
               keyboardType="number-pad"
+              icon="people-outline"
             />
           </View>
         </View>
 
-        {/* Date & Time Row */}
+        {/* Date & Time */}
         <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.textInput}
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label="Date"
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9CA3AF"
               value={date}
               onChangeText={setDate}
+              icon="time-outline"
             />
           </View>
 
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>Time</Text>
-            <TextInput
-              style={styles.textInput}
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label="Start Time"
               placeholder="10:00 AM"
-              placeholderTextColor="#9CA3AF"
               value={time}
               onChangeText={setTime}
+              icon="alarm-outline"
             />
           </View>
         </View>
 
         {/* Description */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Event Description & Guidelines</Text>
-          <TextInput
-            style={[styles.textInput, styles.textArea]}
-            placeholder="Explain event rules, prerequisites, prize pool, or schedule breakdown..."
-            placeholderTextColor="#9CA3AF"
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-        </View>
+        <AppTextInput
+          label="Description & Event Rules"
+          placeholder="Describe rules, prerequisites, prize pool, or schedule breakdown..."
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={4}
+          style={styles.textArea}
+        />
 
-        {/* Action Buttons */}
-        <TouchableOpacity style={styles.publishBtn} onPress={handlePublish}>
-          <Ionicons name="sparkles" size={18} color="#FFFFFF" />
-          <Text style={styles.publishBtnText}>Publish Event</Text>
-        </TouchableOpacity>
+        {/* Action Button */}
+        <AppButton
+          title="Publish Campus Event"
+          variant="secondary"
+          size="lg"
+          icon="sparkles"
+          isLoading={isSubmitting}
+          onPress={handlePublish}
+          style={styles.submitBtn}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -196,98 +192,60 @@ export default function CreateEventScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 18,
-    paddingBottom: 40,
-    gap: 14,
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
   },
   bannerPicker: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: Colors.light.card,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: Colors.light.border,
     borderStyle: 'dashed',
-    padding: 24,
+    padding: Spacing.four,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing.half,
+    marginBottom: Spacing.three,
   },
   bannerPickerUploaded: {
-    borderColor: '#059669',
-    backgroundColor: '#ECFDF5',
+    borderColor: Colors.light.secondary,
+    backgroundColor: Colors.light.secondaryLight,
     borderStyle: 'solid',
   },
   bannerPickerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   bannerPickerSub: {
-    fontSize: 11,
-    color: '#94A3B8',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textTertiary,
   },
-  inputGroup: {
-    gap: 6,
+  categoryContainer: {
+    marginBottom: Spacing.three,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.light.text,
+    marginBottom: Spacing.one,
   },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 46,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  textArea: {
-    height: 100,
-    paddingTop: 12,
+  categoryRow: {
+    gap: Spacing.one,
+    paddingVertical: Spacing.half,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.two,
   },
-  categoryRow: {
-    gap: 8,
-    paddingVertical: 4,
+  textArea: {
+    minHeight: 90,
+    textAlignVertical: 'top',
   },
-  categoryChip: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  categoryChipActive: {
-    backgroundColor: '#059669',
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-  },
-  publishBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  publishBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+  submitBtn: {
+    marginTop: Spacing.two,
   },
 });

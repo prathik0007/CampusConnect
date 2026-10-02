@@ -9,12 +9,33 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { CampusEvent, EventCategory } from '@/types';
+import { AppCard } from '@/components/common/AppCard';
+import { CategoryChip, EventCard } from '@/components/events';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
-const CATEGORIES = [
-  { id: '1', name: 'Technical', icon: 'code-slash-outline', color: '#2563EB', bg: '#EFF6FF' },
-  { id: '2', name: 'Cultural', icon: 'musical-notes-outline', color: '#7C3AED', bg: '#F5F3FF' },
-  { id: '3', name: 'Sports', icon: 'football-outline', color: '#059669', bg: '#ECFDF5' },
-  { id: '4', name: 'Workshop', icon: 'bulb-outline', color: '#D97706', bg: '#FFFBEB' },
+const FEATURED_EVENT: CampusEvent = {
+  id: 'evt_1',
+  title: 'HackCampus 2026: 24h Hackathon',
+  description: 'Annual state-level tech hackathon with cash prizes, mentor sessions, and internship opportunities.',
+  category: 'Technical',
+  bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80',
+  startDate: '2026-10-15T09:00:00Z',
+  endDate: '2026-10-16T09:00:00Z',
+  venue: 'Campus Auditorium & Lab 4',
+  maxCapacity: 150,
+  registeredCount: 84,
+  organizerId: 'usr_org_1',
+  organizerName: 'Coding Club & MCA Council',
+  status: 'published',
+};
+
+const CATEGORIES: EventCategory[] = [
+  'Technical',
+  'Cultural',
+  'Sports',
+  'Workshop',
+  'Seminar',
 ];
 
 export default function StudentHomeScreen() {
@@ -24,34 +45,38 @@ export default function StudentHomeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Student Welcome Banner */}
-      <View style={styles.banner}>
-        <View style={styles.bannerTextContainer}>
-          <Text style={styles.greeting}>Welcome back 👋</Text>
-          <Text style={styles.userName}>{user?.name || 'Student'}</Text>
-          <Text style={styles.userDept}>
-            {user?.department || 'MCA'} • {user?.rollNumber || 'Student'}
-          </Text>
+      <AppCard variant="flat" style={styles.bannerCard} padding="lg">
+        <View style={styles.bannerRow}>
+          <View style={styles.bannerText}>
+            <Text style={styles.greeting}>Welcome back 👋</Text>
+            <Text style={styles.userName}>{user?.name || 'Prathik Kumar'}</Text>
+            <Text style={styles.userDept}>
+              {user?.department || 'MCA'} • {user?.rollNumber || 'Student'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notifButton}
+            onPress={() => router.push('/(student)/events')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="notifications-outline" size={22} color={Colors.light.primary} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.notifButton}
-          onPress={() => router.push('/(student)/events')}
-        >
-          <Ionicons name="notifications-outline" size={22} color="#1E3A8A" />
-        </TouchableOpacity>
-      </View>
+      </AppCard>
 
-      {/* Quick Action Badges */}
+      {/* Quick Summary Cards */}
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Ionicons name="calendar-outline" size={20} color="#2563EB" />
+        <AppCard style={styles.statCard} variant="outlined" padding="md">
+          <Ionicons name="calendar-outline" size={22} color={Colors.light.primary} />
           <Text style={styles.statNumber}>12</Text>
           <Text style={styles.statLabel}>Upcoming Events</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="ticket-outline" size={20} color="#059669" />
+        </AppCard>
+
+        <AppCard style={styles.statCard} variant="outlined" padding="md">
+          <Ionicons name="ticket-outline" size={22} color={Colors.light.secondary} />
           <Text style={styles.statNumber}>2</Text>
-          <Text style={styles.statLabel}>My Registered</Text>
-        </View>
+          <Text style={styles.statLabel}>Registered Passes</Text>
+        </AppCard>
       </View>
 
       {/* Category Shortcuts */}
@@ -63,54 +88,30 @@ export default function StudentHomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.categoriesGrid}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
           {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.categoryCard, { backgroundColor: cat.bg }]}
+            <CategoryChip
+              key={cat}
+              category={cat}
               onPress={() => router.push('/(student)/events')}
-            >
-              <Ionicons name={cat.icon as any} size={24} color={cat.color} />
-              <Text style={[styles.categoryName, { color: cat.color }]}>{cat.name}</Text>
-            </TouchableOpacity>
+              size="md"
+            />
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Featured Event Preview */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Featured Campus Event</Text>
+          <Text style={styles.sectionTitle}>Featured Event</Text>
         </View>
 
-        <View style={styles.featuredCard}>
-          <View style={styles.featuredBadge}>
-            <Text style={styles.featuredBadgeText}>FEATURED</Text>
-          </View>
-          <Text style={styles.featuredTitle}>HackCampus 2026: 24h Hackathon</Text>
-          <Text style={styles.featuredDesc}>
-            Annual state-level tech hackathon with cash prizes, mentor sessions, and internship opportunities.
-          </Text>
-
-          <View style={styles.eventMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={16} color="#4B5563" />
-              <Text style={styles.metaText}>Oct 15, 2026 • 9:00 AM</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="location-outline" size={16} color="#4B5563" />
-              <Text style={styles.metaText}>Campus Auditorium & Lab 4</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.featuredButton}
-            onPress={() => router.push('/(student)/events')}
-          >
-            <Text style={styles.featuredButtonText}>Explore & Register</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        <EventCard
+          event={FEATURED_EVENT}
+          isRegistered={true}
+          onPress={() => router.push('/(student)/events')}
+          onRegisterPress={() => router.push('/(student)/events')}
+        />
       </View>
     </ScrollView>
   );
@@ -119,46 +120,46 @@ export default function StudentHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 18,
-    paddingBottom: 40,
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
   },
-  banner: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 18,
-    padding: 20,
+  bannerCard: {
+    backgroundColor: Colors.light.primaryLight,
+    borderColor: '#DBEAFE',
+    borderWidth: 1,
+    marginBottom: Spacing.three,
+  },
+  bannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    marginBottom: 16,
   },
-  bannerTextContainer: {
+  bannerText: {
     flex: 1,
   },
   greeting: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontWeight: '600',
+    fontSize: Typography.size.sm,
+    color: Colors.light.primary,
+    fontWeight: Typography.weight.semibold,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: Typography.size.xxl,
+    fontWeight: Typography.weight.heavy,
     color: '#1E3A8A',
     marginTop: 2,
   },
   userDept: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+    marginTop: Spacing.one,
   },
   notifButton: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -167,132 +168,45 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: Spacing.two,
+    marginBottom: Spacing.four,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   statNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 6,
+    fontSize: Typography.size.xxl,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
+    marginTop: Spacing.one,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: Spacing.four,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.two,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.lg,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   seeAllText: {
-    fontSize: 13,
-    color: '#2563EB',
-    fontWeight: '600',
+    fontSize: Typography.size.sm,
+    color: Colors.light.primary,
+    fontWeight: Typography.weight.semibold,
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  categoryCard: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    gap: 6,
-  },
-  categoryName: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  featuredCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  featuredBadge: {
-    backgroundColor: '#FEF3C7',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: 10,
-  },
-  featuredBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#D97706',
-    letterSpacing: 0.5,
-  },
-  featuredTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  featuredDesc: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  eventMeta: {
-    gap: 8,
-    marginBottom: 16,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaText: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  featuredButton: {
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  featuredButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+  categoriesRow: {
+    gap: Spacing.two,
+    paddingVertical: Spacing.half,
   },
 });

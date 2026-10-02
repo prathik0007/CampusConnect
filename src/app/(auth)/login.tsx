@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +11,8 @@ import {
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { AppButton, AppTextInput } from '@/components/common';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function LoginScreen() {
         {/* Header Branding */}
         <View style={styles.header}>
           <View style={styles.logoBadge}>
-            <Ionicons name="school-outline" size={38} color="#2563EB" />
+            <Ionicons name="school-outline" size={38} color={Colors.light.primary} />
           </View>
           <Text style={styles.appName}>CampusConnect</Text>
           <Text style={styles.tagline}>Campus Event Management Platform</Text>
@@ -69,55 +69,39 @@ export default function LoginScreen() {
 
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+              <Ionicons name="alert-circle-outline" size={18} color={Colors.light.error} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Campus Email / Roll No</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="student@campus.edu or organizer@campus.edu"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-          </View>
+          <AppTextInput
+            label="Campus Email / Roll No"
+            placeholder="student@campus.edu or organizer@campus.edu"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            icon="mail-outline"
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-          </View>
+          <AppTextInput
+            label="Password"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            isPassword={true}
+            icon="lock-closed-outline"
+          />
 
-          <TouchableOpacity
-            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+          <AppButton
+            title="Sign In"
             onPress={() => handleLogin()}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
+            isLoading={isLoading}
+            size="lg"
+            style={styles.primaryButton}
+          />
 
-          {/* Quick Demo Logins for Pair Programming & Testing */}
+          {/* Quick Demo Access */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>QUICK DEMO ACCESS</Text>
@@ -125,21 +109,25 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.quickAccessRow}>
-            <TouchableOpacity
-              style={[styles.quickButton, styles.quickStudent]}
-              onPress={() => handleLogin('student')}
-            >
-              <Ionicons name="person-outline" size={16} color="#1D4ED8" />
-              <Text style={styles.quickStudentText}>Demo Student</Text>
-            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <AppButton
+                title="Demo Student"
+                variant="outline"
+                size="sm"
+                icon="person-outline"
+                onPress={() => handleLogin('student')}
+              />
+            </View>
 
-            <TouchableOpacity
-              style={[styles.quickButton, styles.quickOrganizer]}
-              onPress={() => handleLogin('organizer')}
-            >
-              <Ionicons name="shield-checkmark-outline" size={16} color="#047857" />
-              <Text style={styles.quickOrganizerText}>Demo Organizer</Text>
-            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <AppButton
+                title="Demo Organizer"
+                variant="secondary"
+                size="sm"
+                icon="shield-checkmark-outline"
+                onPress={() => handleLogin('organizer')}
+              />
+            </View>
           </View>
 
           <View style={styles.footerLinkContainer}>
@@ -159,177 +147,106 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.light.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: Spacing.four,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: Spacing.four,
   },
   logoBadge: {
     width: 72,
     height: 72,
-    borderRadius: 20,
-    backgroundColor: '#EFF6FF',
+    borderRadius: BorderRadius.xl,
+    backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.two,
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
   appName: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: Typography.size.display,
+    fontWeight: Typography.weight.heavy,
     color: '#1E3A8A',
     letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
     marginTop: 4,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: Colors.light.card,
+    borderRadius: BorderRadius.xxl,
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: Typography.size.xl,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   formSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: Spacing.three,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 14,
-    gap: 8,
+    backgroundColor: Colors.light.errorLight,
+    padding: Spacing.two,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.three,
+    gap: Spacing.one,
   },
   errorText: {
-    color: '#DC2626',
-    fontSize: 13,
+    color: Colors.light.errorText,
+    fontSize: Typography.size.sm,
     flex: 1,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 15,
-    color: '#111827',
   },
   primaryButton: {
-    backgroundColor: '#2563EB',
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    marginTop: Spacing.two,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: Spacing.four,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.light.border,
   },
   dividerText: {
-    marginHorizontal: 10,
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontWeight: '600',
+    marginHorizontal: Spacing.two,
+    fontSize: Typography.size.xs,
+    color: Colors.light.textTertiary,
+    fontWeight: Typography.weight.semibold,
   },
   quickAccessRow: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  quickButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
-    borderWidth: 1,
-  },
-  quickStudent: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
-  },
-  quickStudentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1D4ED8',
-  },
-  quickOrganizer: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-  },
-  quickOrganizerText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#047857',
+    gap: Spacing.two,
   },
   footerLinkContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: Spacing.four,
   },
   footerText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
   },
   linkText: {
-    fontSize: 14,
-    color: '#2563EB',
-    fontWeight: '700',
+    fontSize: Typography.size.sm,
+    color: Colors.light.primary,
+    fontWeight: Typography.weight.bold,
   },
 });

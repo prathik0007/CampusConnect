@@ -4,10 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AppCard, SearchBar, StatusBadge } from '@/components/common';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 interface Attendee {
   id: string;
@@ -87,6 +88,7 @@ export default function OrganizerAttendeesScreen() {
   );
 
   const checkedInCount = attendees.filter((a) => a.attended).length;
+  const attendancePercent = Math.round((checkedInCount / attendees.length) * 100);
 
   return (
     <View style={styles.container}>
@@ -98,38 +100,32 @@ export default function OrganizerAttendeesScreen() {
             {checkedInCount} of {attendees.length} verified attendance
           </Text>
         </View>
-        <View style={styles.percentageBadge}>
-          <Text style={styles.percentageText}>
-            {Math.round((checkedInCount / attendees.length) * 100)}%
-          </Text>
-        </View>
+        <StatusBadge
+          label={`${attendancePercent}% Present`}
+          status={attendancePercent >= 50 ? 'success' : 'warning'}
+          size="md"
+        />
       </View>
 
-      {/* Search Input */}
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#6B7280" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, roll number, or pass code..."
-          placeholderTextColor="#9CA3AF"
+      {/* Search Input using common SearchBar */}
+      <View style={styles.searchWrapper}>
+        <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
+          placeholder="Search by student name, roll no, or pass..."
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Attendees List */}
       <ScrollView contentContainerStyle={styles.listContent}>
         {filteredAttendees.map((student) => (
-          <View key={student.id} style={styles.studentCard}>
+          <AppCard key={student.id} style={styles.studentCard} padding="md">
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.studentName}>{student.name}</Text>
-                <Text style={styles.rollBadge}>{student.rollNumber}</Text>
+                <View style={styles.rollBadge}>
+                  <Text style={styles.rollText}>{student.rollNumber}</Text>
+                </View>
               </View>
 
               <Text style={styles.eventLabel}>{student.eventTitle}</Text>
@@ -142,11 +138,12 @@ export default function OrganizerAttendeesScreen() {
                 student.attended ? styles.checkedIn : styles.notCheckedIn,
               ]}
               onPress={() => toggleAttendance(student.id)}
+              activeOpacity={0.7}
             >
               <Ionicons
                 name={student.attended ? 'checkmark-circle' : 'ellipse-outline'}
                 size={18}
-                color={student.attended ? '#059669' : '#6B7280'}
+                color={student.attended ? Colors.light.secondary : Colors.light.textSecondary}
               />
               <Text
                 style={[
@@ -157,7 +154,7 @@ export default function OrganizerAttendeesScreen() {
                 {student.attended ? 'Present' : 'Check In'}
               </Text>
             </TouchableOpacity>
-          </View>
+          </AppCard>
         ))}
       </ScrollView>
     </View>
@@ -167,79 +164,44 @@ export default function OrganizerAttendeesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   counterBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    backgroundColor: Colors.light.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.light.border,
   },
   counterTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.md,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   counterSub: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
-  percentageBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  percentageText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
+  searchWrapper: {
+    padding: Spacing.three,
+    paddingBottom: Spacing.one,
+    backgroundColor: Colors.light.card,
   },
   listContent: {
-    padding: 16,
-    paddingTop: 8,
-    gap: 10,
-    paddingBottom: 32,
+    padding: Spacing.three,
+    paddingTop: Spacing.two,
+    gap: Spacing.two,
+    paddingBottom: Spacing.six,
   },
   studentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    marginBottom: Spacing.one,
   },
   cardInfo: {
     flex: 1,
@@ -248,57 +210,59 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.one,
   },
   studentName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.base,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   rollBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: Colors.light.primaryLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  rollText: {
+    fontSize: Typography.size.xs - 1,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.primary,
   },
   eventLabel: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
   passCode: {
-    fontSize: 11,
-    color: '#94A3B8',
+    fontSize: Typography.size.xs - 1,
+    color: Colors.light.textTertiary,
     fontFamily: 'monospace',
   },
   checkInBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.two,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
   },
   checkedIn: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: Colors.light.secondaryLight,
     borderColor: '#A7F3D0',
   },
   notCheckedIn: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#CBD5E1',
+    backgroundColor: Colors.light.backgroundElement,
+    borderColor: Colors.light.border,
   },
   checkInText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.bold,
   },
   textChecked: {
-    color: '#059669',
+    color: Colors.light.secondary,
   },
   textNotChecked: {
-    color: '#64748B',
+    color: Colors.light.textSecondary,
   },
 });

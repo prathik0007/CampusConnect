@@ -4,12 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
   Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Registration } from '@/types';
+import { AppButton, EmptyState, StatusBadge } from '@/components/common';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/theme';
 
 const INITIAL_REGISTRATIONS: Registration[] = [
   {
@@ -37,16 +39,17 @@ const INITIAL_REGISTRATIONS: Registration[] = [
 ];
 
 export default function MyTicketsScreen() {
+  const router = useRouter();
   const [registrations, setRegistrations] = useState<Registration[]>(INITIAL_REGISTRATIONS);
 
   const handleCancelRegistration = (id: string, title?: string) => {
     Alert.alert(
-      'Cancel Registration',
-      `Are you sure you want to cancel your registration for "${title}"?`,
+      'Cancel Event Pass',
+      `Are you sure you want to cancel your pass for "${title}"? This ticket will become invalid.`,
       [
-        { text: 'Keep Ticket', style: 'cancel' },
+        { text: 'Keep My Pass', style: 'cancel' },
         {
-          text: 'Yes, Cancel',
+          text: 'Yes, Cancel Pass',
           style: 'destructive',
           onPress: () => {
             setRegistrations((prev) => prev.filter((r) => r.id !== id));
@@ -59,37 +62,34 @@ export default function MyTicketsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>Your Event Passes</Text>
+        <Text style={styles.title}>Your Digital Passes</Text>
         <Text style={styles.subtitle}>
-          Show these digital passes at the event entrance for verification
+          Present these passes at campus entry gates for digital verification
         </Text>
       </View>
 
       {registrations.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Ionicons name="ticket-outline" size={54} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>No Active Registrations</Text>
-          <Text style={styles.emptyDesc}>
-            You haven't registered for any events yet. Explore upcoming events and reserve your spot!
-          </Text>
-        </View>
+        <EmptyState
+          title="No Active Passes Found"
+          description="You haven't reserved tickets for any events yet. Explore upcoming campus events and reserve your spot!"
+          icon="ticket-outline"
+          actionTitle="Browse Events"
+          onActionPress={() => router.push('/(student)/events')}
+        />
       ) : (
         registrations.map((ticket) => (
-          <View key={ticket.id} style={styles.ticketCard}>
+          <View key={ticket.id} style={[styles.ticketCard, Shadows.md]}>
             {/* Ticket Header */}
             <View style={styles.ticketTop}>
               <View style={styles.badgeRow}>
-                <View style={styles.confirmedBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#059669" />
-                  <Text style={styles.confirmedBadgeText}>CONFIRMED PASS</Text>
-                </View>
+                <StatusBadge label="Confirmed Pass" status="success" icon="checkmark-circle" />
                 <Text style={styles.ticketCode}>{ticket.ticketCode}</Text>
               </View>
 
               <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
             </View>
 
-            {/* Perforated Divider */}
+            {/* Perforated Cutout Divider */}
             <View style={styles.perforationContainer}>
               <View style={styles.leftCutout} />
               <View style={styles.dashedLine} />
@@ -100,7 +100,7 @@ export default function MyTicketsScreen() {
             <View style={styles.ticketBottom}>
               <View style={styles.infoRow}>
                 <View style={styles.infoCol}>
-                  <Text style={styles.infoLabel}>DATE & TIME</Text>
+                  <Text style={styles.infoLabel}>DATE</Text>
                   <Text style={styles.infoValue}>
                     {new Date(ticket.eventStartDate || '').toLocaleDateString(undefined, {
                       month: 'short',
@@ -119,17 +119,18 @@ export default function MyTicketsScreen() {
 
               <View style={styles.actionRow}>
                 <View style={styles.qrPlaceholder}>
-                  <Ionicons name="qr-code-outline" size={24} color="#2563EB" />
-                  <Text style={styles.qrText}>Digital Pass</Text>
+                  <Ionicons name="qr-code-outline" size={24} color={Colors.light.primary} />
+                  <Text style={styles.qrText}>Digital QR Verified</Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.cancelButton}
+                <AppButton
+                  title="Cancel Pass"
+                  variant="danger"
+                  size="sm"
+                  fullWidth={false}
+                  icon="close-circle-outline"
                   onPress={() => handleCancelRegistration(ticket.id, ticket.eventTitle)}
-                >
-                  <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
-                  <Text style={styles.cancelText}>Cancel Registration</Text>
-                </TouchableOpacity>
+                />
               </View>
             </View>
           </View>
@@ -142,152 +143,110 @@ export default function MyTicketsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 18,
-    paddingBottom: 40,
-    gap: 16,
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
+    gap: Spacing.three,
   },
   header: {
-    marginBottom: 4,
+    marginBottom: Spacing.one,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: Typography.size.xl,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#64748B',
+    fontSize: Typography.size.sm,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 36,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: 20,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 14,
-  },
-  emptyDesc: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-  },
   ticketCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    backgroundColor: Colors.light.card,
+    borderRadius: BorderRadius.xl,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.light.border,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   ticketTop: {
-    padding: 18,
-    backgroundColor: '#FFFFFF',
+    padding: Spacing.three,
+    backgroundColor: Colors.light.card,
   },
   badgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  confirmedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-  },
-  confirmedBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
+    marginBottom: Spacing.two,
   },
   ticketCode: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.textSecondary,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   eventTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.md,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   perforationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'relative',
-    height: 20,
-    backgroundColor: '#FFFFFF',
+    height: 18,
+    backgroundColor: Colors.light.card,
   },
   leftCutout: {
     width: 16,
-    height: 20,
-    backgroundColor: '#F8FAFC',
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
+    height: 18,
+    backgroundColor: Colors.light.background,
+    borderTopRightRadius: 9,
+    borderBottomRightRadius: 9,
     borderWidth: 1,
     borderLeftWidth: 0,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.light.border,
   },
   dashedLine: {
     flex: 1,
     height: 1,
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginHorizontal: 8,
+    borderColor: Colors.light.border,
+    marginHorizontal: Spacing.two,
   },
   rightCutout: {
     width: 16,
-    height: 20,
-    backgroundColor: '#F8FAFC',
-    borderTopLeftRadius: 10,
-    borderBottomLeftRadius: 10,
+    height: 18,
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 9,
+    borderBottomLeftRadius: 9,
     borderWidth: 1,
     borderRightWidth: 0,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.light.border,
   },
   ticketBottom: {
-    padding: 18,
-    backgroundColor: '#F8FAFC',
+    padding: Spacing.three,
+    backgroundColor: Colors.light.backgroundElement,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: Spacing.three,
   },
   infoCol: {
     flex: 1,
   },
   infoLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#94A3B8',
+    fontSize: Typography.size.xs - 1,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.textTertiary,
     letterSpacing: 0.5,
   },
   infoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.light.text,
     marginTop: 2,
   },
   actionRow: {
@@ -295,31 +254,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 12,
+    borderTopColor: Colors.light.border,
+    paddingTop: Spacing.two,
   },
   qrPlaceholder: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Spacing.one,
   },
   qrText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  cancelButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#FEE2E2',
-  },
-  cancelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#DC2626',
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.light.primary,
   },
 });

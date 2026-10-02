@@ -33,6 +33,14 @@ export default function RootLayout() {
                 animation: 'slide_from_right',
               }}
             />
+            <Stack.Screen
+              name="event-edit/[id]"
+              options={{
+                headerShown: false,
+                presentation: 'card',
+                animation: 'slide_from_right',
+              }}
+            />
           </Stack>
         </EventProvider>
       </AuthProvider>

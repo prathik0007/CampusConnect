@@ -9,11 +9,18 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { useEvents } from '@/context/EventContext';
 import { Ionicons } from '@expo/vector-icons';
+import { AppButton, AppCard, LoadingIndicator, StatusBadge } from '@/components/common';
+import { MetricCard } from '@/components/organizer';
+import { EventCard } from '@/components/events';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
+import { CampusEvent } from '@/types';
 
 export default function OrganizerDashboardScreen() {
   const router = useRouter();
   const { user, logout, switchRole } = useAuth();
+  const { events, registrations, isLoading } = useEvents();
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Sign out of the Organizer Portal?', [
@@ -34,113 +41,217 @@ export default function OrganizerDashboardScreen() {
     router.replace('/(student)/index');
   };
 
+  // Dynamic calculations from state
+  const totalEvents = events.length;
+  const publishedEvents = events.filter((e) => e.status === 'published').length;
+  const draftEvents = events.filter((e) => e.status === 'draft').length;
+  const totalRegistrations = registrations.filter(
+    (r) => r.status === 'registered' || r.status === 'attended'
+  ).length;
+  const totalCheckIns = registrations.filter((r) => r.status === 'attended').length;
+
+  const totalCapacity = events.reduce((sum, e) => sum + e.maxCapacity, 0);
+  const totalRegisteredSeats = events.reduce((sum, e) => sum + e.registeredCount, 0);
+  const capacityUtilization =
+    totalCapacity > 0 ? Math.round((totalRegisteredSeats / totalCapacity) * 100) : 0;
+
+  // Recent 2 events
+  const recentEvents = events.slice(0, 2);
+
+  // Recent 4 registrations
+  const recentRegistrations = registrations.slice(0, 4);
+
+  const handleNavigateToEvent = (event: CampusEvent) => {
+    router.push(`/event/${event.id}` as any);
+  };
+
+  if (isLoading) {
+    return <LoadingIndicator fullScreen message="Loading organizer metrics..." />;
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Top Banner */}
       <View style={styles.banner}>
         <View style={styles.bannerHeader}>
-          <View>
-            <Text style={styles.roleTag}>ORGANIZER CONSOLE</Text>
+          <View style={{ flex: 1 }}>
+            <View style={styles.roleTagRow}>
+              <Text style={styles.roleTag}>ORGANIZER CONSOLE</Text>
+              <StatusBadge label="Council Admin" status="success" size="sm" />
+            </View>
             <Text style={styles.organizerName}>{user?.name || 'Tech & Cultural Council'}</Text>
-            <Text style={styles.organizerSub}>{user?.email || 'organizer@campus.edu'}</Text>
+            <Text style={styles.organizerSub}>
+              {user?.department || 'Department of Computer Applications'} • {user?.email}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+            <Ionicons name="log-out-outline" size={18} color={Colors.light.error} />
           </TouchableOpacity>
         </View>
 
         {/* Quick Role Switcher Banner */}
-        <TouchableOpacity style={styles.switchBar} onPress={handleSwitchToStudent}>
-          <Ionicons name="swap-horizontal" size={16} color="#047857" />
-          <Text style={styles.switchBarText}>Switch to Student Portal</Text>
+        <TouchableOpacity style={styles.switchBar} onPress={handleSwitchToStudent} activeOpacity={0.8}>
+          <Ionicons name="swap-horizontal" size={16} color={Colors.light.secondary} />
+          <Text style={styles.switchBarText}>Switch to Student Portal (Demo Mode)</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Analytics KPI Grid */}
-      <Text style={styles.sectionTitle}>Overview Statistics</Text>
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <View style={[styles.statIconBadge, { backgroundColor: '#ECFDF5' }]}>
-            <Ionicons name="calendar-outline" size={20} color="#059669" />
-          </View>
-          <Text style={styles.statNumber}>4</Text>
-          <Text style={styles.statLabel}>Active Events</Text>
-        </View>
-
-        <View style={styles.statBox}>
-          <View style={[styles.statIconBadge, { backgroundColor: '#EFF6FF' }]}>
-            <Ionicons name="people-outline" size={20} color="#2563EB" />
-          </View>
-          <Text style={styles.statNumber}>456</Text>
-          <Text style={styles.statLabel}>Total Registrations</Text>
-        </View>
-
-        <View style={styles.statBox}>
-          <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="pie-chart-outline" size={20} color="#D97706" />
-          </View>
-          <Text style={styles.statNumber}>78%</Text>
-          <Text style={styles.statLabel}>Capacity Filled</Text>
-        </View>
-
-        <View style={styles.statBox}>
-          <View style={[styles.statIconBadge, { backgroundColor: '#F5F3FF' }]}>
-            <Ionicons name="checkmark-done-circle-outline" size={20} color="#7C3AED" />
-          </View>
-          <Text style={styles.statNumber}>184</Text>
-          <Text style={styles.statLabel}>Checked-in</Text>
-        </View>
+      {/* Analytics KPI Metric Grid */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Overview Analytics</Text>
+        <Text style={styles.sectionSubtitle}>Real-time campus event participation</Text>
       </View>
 
-      {/* Quick Actions */}
-      <Text style={styles.sectionTitle}>Quick Management</Text>
+      <View style={styles.statsGrid}>
+        <MetricCard
+          title="Total Events"
+          value={totalEvents}
+          icon="calendar-outline"
+          iconColor={Colors.light.secondary}
+          iconBg={Colors.light.secondaryLight}
+          subtext={`${publishedEvents} published, ${draftEvents} drafts`}
+          onPress={() => router.push('/(organizer)/my-events')}
+        />
+
+        <MetricCard
+          title="Total Passes Issued"
+          value={totalRegistrations}
+          icon="ticket-outline"
+          iconColor={Colors.light.primary}
+          iconBg={Colors.light.primaryLight}
+          subtext="Across all campus events"
+          onPress={() => router.push('/(organizer)/attendees')}
+        />
+
+        <MetricCard
+          title="Verified Check-ins"
+          value={totalCheckIns}
+          icon="checkmark-done-circle-outline"
+          iconColor="#7C3AED"
+          iconBg="#F5F3FF"
+          subtext={`${
+            totalRegistrations > 0
+              ? Math.round((totalCheckIns / totalRegistrations) * 100)
+              : 0
+          }% attendance rate`}
+          onPress={() => router.push('/(organizer)/attendees')}
+        />
+
+        <MetricCard
+          title="Capacity Filled"
+          value={`${capacityUtilization}%`}
+          icon="pie-chart-outline"
+          iconColor={Colors.light.warningText}
+          iconBg={Colors.light.warningLight}
+          subtext={`${totalRegisteredSeats}/${totalCapacity} total seats`}
+          onPress={() => router.push('/(organizer)/my-events')}
+        />
+      </View>
+
+      {/* Quick Management Shortcuts */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Quick Management</Text>
+      </View>
+
       <View style={styles.actionsRow}>
-        <TouchableOpacity
+        <AppCard
           style={styles.actionCard}
+          variant="outlined"
+          padding="md"
           onPress={() => router.push('/(organizer)/create-event')}
         >
-          <View style={[styles.actionIcon, { backgroundColor: '#ECFDF5' }]}>
-            <Ionicons name="add-circle" size={26} color="#059669" />
+          <View style={[styles.actionIcon, { backgroundColor: Colors.light.secondaryLight }]}>
+            <Ionicons name="add-circle" size={26} color={Colors.light.secondary} />
           </View>
           <Text style={styles.actionTitle}>Create Event</Text>
-          <Text style={styles.actionSub}>Publish new campus event</Text>
-        </TouchableOpacity>
+          <Text style={styles.actionSub}>Publish new campus activity</Text>
+        </AppCard>
 
-        <TouchableOpacity
+        <AppCard
           style={styles.actionCard}
+          variant="outlined"
+          padding="md"
           onPress={() => router.push('/(organizer)/attendees')}
         >
-          <View style={[styles.actionIcon, { backgroundColor: '#EFF6FF' }]}>
-            <Ionicons name="list-outline" size={26} color="#2563EB" />
+          <View style={[styles.actionIcon, { backgroundColor: Colors.light.primaryLight }]}>
+            <Ionicons name="people" size={26} color={Colors.light.primary} />
           </View>
           <Text style={styles.actionTitle}>Attendee Roster</Text>
-          <Text style={styles.actionSub}>Check-in & student list</Text>
-        </TouchableOpacity>
+          <Text style={styles.actionSub}>Check-in & student verification</Text>
+        </AppCard>
       </View>
 
-      {/* Recent Registrations Activity */}
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Recent Student Registrations</Text>
-        <View style={styles.activityCard}>
-          {[
-            { name: 'Prathik Kumar', roll: 'MCA2024042', event: 'HackCampus 2026', time: '10 mins ago' },
-            { name: 'Sneha Rao', roll: 'MCA2024018', event: 'Verve Cultural Fest', time: '35 mins ago' },
-            { name: 'Aditya Sharma', roll: 'MCA2024005', event: 'Cloud & AI Workshop', time: '1 hour ago' },
-          ].map((item, idx) => (
-            <View key={idx} style={[styles.activityRow, idx > 0 && styles.activityBorder]}>
-              <View style={styles.userAvatar}>
-                <Ionicons name="person" size={16} color="#059669" />
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityName}>{item.name}</Text>
-                <Text style={styles.activityEvent}>
-                  {item.roll} • {item.event}
-                </Text>
-              </View>
-              <Text style={styles.activityTime}>{item.time}</Text>
-            </View>
-          ))}
+      {/* Recent Events Showcase */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Managed Campus Events</Text>
+          <TouchableOpacity onPress={() => router.push('/(organizer)/my-events')}>
+            <Text style={styles.seeAllText}>View All ({events.length})</Text>
+          </TouchableOpacity>
         </View>
+
+        {recentEvents.map((evt) => (
+          <EventCard
+            key={evt.id}
+            event={evt}
+            isOrganizerView={true}
+            onPress={handleNavigateToEvent}
+            onAttendeesPress={() => router.push({ pathname: '/(organizer)/attendees', params: { eventId: evt.id } })}
+            onEditPress={() => router.push(`/event-edit/${evt.id}` as any)}
+          />
+        ))}
+      </View>
+
+      {/* Recent Registrations & Check-ins Activity Feed */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Recent Student Activity</Text>
+          <TouchableOpacity onPress={() => router.push('/(organizer)/attendees')}>
+            <Text style={styles.seeAllText}>Full Roster</Text>
+          </TouchableOpacity>
+        </View>
+
+        <AppCard variant="outlined" padding="none">
+          {recentRegistrations.map((item, idx) => {
+            const isAttended = item.status === 'attended';
+            return (
+              <View
+                key={item.id}
+                style={[styles.activityRow, idx > 0 && styles.activityBorder]}
+              >
+                <View
+                  style={[
+                    styles.userAvatar,
+                    {
+                      backgroundColor: isAttended
+                        ? Colors.light.secondaryLight
+                        : Colors.light.primaryLight,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={isAttended ? 'checkmark-circle' : 'person'}
+                    size={16}
+                    color={isAttended ? Colors.light.secondary : Colors.light.primary}
+                  />
+                </View>
+
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityName}>{item.studentName}</Text>
+                  <Text style={styles.activityEvent} numberOfLines={1}>
+                    {item.studentRollNumber} • {item.eventTitle}
+                  </Text>
+                </View>
+
+                <StatusBadge
+                  label={isAttended ? 'Present' : 'Registered'}
+                  status={isAttended ? 'success' : 'info'}
+                  size="sm"
+                />
+              </View>
+            );
+          })}
+        </AppCard>
       </View>
     </ScrollView>
   );
@@ -149,17 +260,17 @@ export default function OrganizerDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   content: {
-    padding: 18,
-    paddingBottom: 40,
-    gap: 16,
+    padding: Spacing.three,
+    paddingBottom: Spacing.six,
+    gap: Spacing.three,
   },
   banner: {
-    backgroundColor: '#ECFDF5',
-    borderRadius: 18,
-    padding: 18,
+    backgroundColor: Colors.light.secondaryLight,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.three,
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
@@ -168,32 +279,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  roleTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginBottom: 4,
+  },
   roleTag: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
+    fontSize: Typography.size.xs - 1,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.secondaryDark,
     letterSpacing: 0.5,
   },
   organizerName: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: Typography.size.xl,
+    fontWeight: Typography.weight.heavy,
     color: '#064E3B',
     marginTop: 2,
   },
   organizerSub: {
-    fontSize: 12,
-    color: '#047857',
+    fontSize: Typography.size.xs,
+    color: Colors.light.secondaryDark,
     marginTop: 2,
+    lineHeight: 16,
   },
   logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FECACA',
+    marginLeft: Spacing.two,
   },
   switchBar: {
     flexDirection: 'row',
@@ -202,119 +321,87 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    marginTop: 14,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.three,
     borderWidth: 1,
     borderColor: '#6EE7B7',
   },
   switchBarText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#047857',
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.secondaryDark,
+  },
+  sectionHeader: {
+    marginBottom: Spacing.half,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.md,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
+  },
+  sectionSubtitle: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+  },
+  seeAllText: {
+    fontSize: Typography.size.sm,
+    color: Colors.light.secondary,
+    fontWeight: Typography.weight.bold,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
+    gap: Spacing.two,
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Spacing.two,
   },
   actionCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
   },
   actionIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: Spacing.two,
   },
   actionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.base,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   actionSub: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
-  recentSection: {
-    marginTop: 4,
-    gap: 12,
-  },
-  activityCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  section: {
+    gap: Spacing.two,
   },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
+    padding: Spacing.three,
+    gap: Spacing.two,
   },
   activityBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: Colors.light.borderLight,
   },
   userAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ECFDF5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -322,17 +409,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: Typography.size.base,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   activityEvent: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 1,
-  },
-  activityTime: {
-    fontSize: 11,
-    color: '#94A3B8',
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,37 +9,83 @@ import {
 import { useRouter } from 'expo-router';
 import { CampusEvent } from '@/types';
 import { useEvents } from '@/context/EventContext';
-import { AppButton, EmptyState } from '@/components/common';
+import { AppButton, EmptyState, LoadingIndicator } from '@/components/common';
 import { EventCard } from '@/components/events';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 
 export default function OrganizerMyEventsScreen() {
   const router = useRouter();
-  const { events } = useEvents();
+  const { events, cancelOrDeleteEvent, isLoading } = useEvents();
 
-  const handleDeleteEvent = (event: CampusEvent) => {
-    Alert.alert(
-      'Delete Campus Event',
-      `Are you sure you want to delete "${event.title}"? (Phase 4 will enable permanent organizer deletion).`,
-      [{ text: 'OK' }]
-    );
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const handleNavigateToDetails = (event: CampusEvent) => {
+    router.push(`/event/${event.id}` as any);
   };
 
   const handleEditEvent = (event: CampusEvent) => {
-    Alert.alert('Edit Event', `Opening event editor for "${event.title}" in Phase 4.`);
+    router.push(`/event-edit/${event.id}` as any);
   };
 
-  const handleAttendees = (_event: CampusEvent) => {
-    router.push('/(organizer)/attendees');
+  const handleViewAttendees = (event: CampusEvent) => {
+    router.push({
+      pathname: '/(organizer)/attendees',
+      params: { eventId: event.id },
+    });
   };
+
+  const handleDeleteOrCancel = (event: CampusEvent) => {
+    const hasRegistrations = event.registeredCount > 0;
+    const isAlreadyCancelled = event.status === 'cancelled';
+
+    if (isAlreadyCancelled) {
+      Alert.alert('Notice', 'This event is already marked as cancelled.');
+      return;
+    }
+
+    const title = hasRegistrations ? 'Cancel Campus Event' : 'Delete Event';
+    const message = hasRegistrations
+      ? `"${event.title}" already has ${event.registeredCount} registered students. To protect student records, the event will be marked as "Cancelled" and no further registrations will be accepted.`
+      : `Are you sure you want to permanently delete draft event "${event.title}"?`;
+
+    Alert.alert(title, message, [
+      { text: 'Keep Event', style: 'cancel' },
+      {
+        text: hasRegistrations ? 'Yes, Cancel Event' : 'Delete Permanently',
+        style: 'destructive',
+        onPress: async () => {
+          setActionLoadingId(event.id);
+          try {
+            const res = await cancelOrDeleteEvent(event.id);
+            if (res.success) {
+              const feedbackMsg =
+                res.action === 'cancelled'
+                  ? `"${event.title}" has been marked as Cancelled.`
+                  : `"${event.title}" was deleted.`;
+              Alert.alert('Event Updated', feedbackMsg);
+            } else {
+              Alert.alert('Error', res.error || 'Failed to update event.');
+            }
+          } finally {
+            setActionLoadingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  if (isLoading) {
+    return <LoadingIndicator fullScreen message="Loading event portfolio..." />;
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header Bar */}
       <View style={styles.headerRow}>
         <View style={styles.titleColumn}>
-          <Text style={styles.title}>Campus Events Roster</Text>
+          <Text style={styles.title}>Campus Event Portfolio</Text>
           <Text style={styles.subtitle}>
-            Manage, publish, or view registrations for your events
+            Publish, edit, view rosters, or manage event cancellations
           </Text>
         </View>
         <AppButton
@@ -52,11 +98,12 @@ export default function OrganizerMyEventsScreen() {
         />
       </View>
 
+      {/* Events List */}
       {events.length === 0 ? (
         <EmptyState
-          title="No Events Found"
-          description="You have not created any events yet. Publish your first event to reach students."
-          actionTitle="Create First Event"
+          title="No Campus Events Found"
+          description="You have not published any events yet. Create your first event to start accepting student registrations."
+          actionTitle="Create Your First Event"
           icon="calendar-outline"
           onActionPress={() => router.push('/(organizer)/create-event')}
         />
@@ -66,9 +113,11 @@ export default function OrganizerMyEventsScreen() {
             key={evt.id}
             event={evt}
             isOrganizerView={true}
-            onAttendeesPress={handleAttendees}
+            actionLoading={actionLoadingId === evt.id}
+            onPress={handleNavigateToDetails}
+            onAttendeesPress={handleViewAttendees}
             onEditPress={handleEditEvent}
-            onDeletePress={handleDeleteEvent}
+            onDeletePress={handleDeleteOrCancel}
           />
         ))
       )}
@@ -101,8 +150,9 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   subtitle: {
-    fontSize: Typography.size.sm,
+    fontSize: Typography.size.xs,
     color: Colors.light.textSecondary,
     marginTop: 2,
+    lineHeight: 16,
   },
 });

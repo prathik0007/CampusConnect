@@ -50,6 +50,7 @@ export interface Registration {
   eventId: string;
   studentId: string;
   studentName?: string;
+  studentEmail?: string;
   studentRollNumber?: string;
   studentDepartment?: string;
   eventTitle?: string;

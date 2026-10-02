@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
@@ -10,10 +9,12 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { EventCategory } from '@/types';
+import { EventCategory, EventStatus } from '@/types';
+import { useEvents } from '@/context/EventContext';
+import { useAuth } from '@/context/AuthContext';
 import { AppButton, AppTextInput } from '@/components/common';
 import { CategoryChip } from '@/components/events';
+import { ImagePickerBox } from '@/components/organizer';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 const CATEGORIES: EventCategory[] = [
@@ -27,41 +28,124 @@ const CATEGORIES: EventCategory[] = [
 
 export default function CreateEventScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { createEvent } = useEvents();
 
+  // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<EventCategory>('Technical');
   const [venue, setVenue] = useState('');
-  const [date, setDate] = useState('2026-11-15');
-  const [time, setTime] = useState('10:00 AM');
+  const [startDate, setStartDate] = useState('2026-11-15');
+  const [startTime, setStartTime] = useState('10:00 AM');
+  const [endDate, setEndDate] = useState('2026-11-15');
+  const [endTime, setEndTime] = useState('04:00 PM');
   const [capacity, setCapacity] = useState('100');
   const [description, setDescription] = useState('');
-  const [bannerUploaded, setBannerUploaded] = useState(false);
+  const [imageUri, setImageUri] = useState<string | undefined>(undefined);
+  const [status, setStatus] = useState<EventStatus>('published');
+
+  // Error States
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handlePublish = () => {
+  // Form validation
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
     if (!title.trim()) {
-      Alert.alert('Missing Field', 'Please provide an event title.');
-      return;
+      newErrors.title = 'Event title is required.';
+    } else if (title.trim().length < 5) {
+      newErrors.title = 'Title must be at least 5 characters.';
     }
+
     if (!venue.trim()) {
-      Alert.alert('Missing Field', 'Please specify the campus venue.');
+      newErrors.venue = 'Campus venue / hall location is required.';
+    }
+
+    if (!description.trim()) {
+      newErrors.description = 'Please provide an event description and guidelines.';
+    } else if (description.trim().length < 15) {
+      newErrors.description = 'Description should be at least 15 characters.';
+    }
+
+    if (!startDate.trim()) {
+      newErrors.startDate = 'Start date is required.';
+    }
+
+    if (!startTime.trim()) {
+      newErrors.startTime = 'Start time is required.';
+    }
+
+    if (!endDate.trim()) {
+      newErrors.endDate = 'End date is required.';
+    }
+
+    if (!endTime.trim()) {
+      newErrors.endTime = 'End time is required.';
+    }
+
+    const numCapacity = parseInt(capacity, 10);
+    if (isNaN(numCapacity) || numCapacity <= 0) {
+      newErrors.capacity = 'Capacity must be a positive number greater than 0.';
+    }
+
+    // Check date ordering (if valid date formats)
+    const startParsed = Date.parse(startDate);
+    const endParsed = Date.parse(endDate);
+    if (!isNaN(startParsed) && !isNaN(endParsed) && endParsed < startParsed) {
+      newErrors.endDate = 'End date cannot be earlier than start date.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handlePublish = async (targetStatus: EventStatus = 'published') => {
+    if (!validateForm()) {
+      Alert.alert('Incomplete Form', 'Please review the highlighted errors before publishing.');
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      // Build ISO timestamps or structured date strings
+      const startDateTimeIso = `${startDate.trim()}T${startTime.includes(':') ? '09:00:00.000Z' : '09:00:00.000Z'}`;
+      const endDateTimeIso = `${endDate.trim()}T${endTime.includes(':') ? '17:00:00.000Z' : '17:00:00.000Z'}`;
+
+      const res = await createEvent({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        bannerUrl:
+          imageUri ||
+          'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1000&auto=format&fit=crop&q=80',
+        startDate: startDateTimeIso,
+        endDate: endDateTimeIso,
+        venue: venue.trim(),
+        maxCapacity: parseInt(capacity, 10),
+        organizerId: user?.id || 'usr_organizer_01',
+        organizerName: user?.name || 'Tech & Cultural Council',
+        organizerContact: user?.email || 'organizer@campus.edu',
+        status: targetStatus,
+      });
+
+      if (res.success) {
+        Alert.alert(
+          targetStatus === 'published' ? 'Event Published! 🎉' : 'Draft Saved',
+          `"${title}" has been successfully added to your event portfolio.`,
+          [
+            {
+              text: 'View in My Events',
+              onPress: () => router.push('/(organizer)/my-events'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', res.error || 'Failed to create event.');
+      }
+    } finally {
       setIsSubmitting(false);
-      Alert.alert(
-        'Event Published',
-        `"${title}" has been published and is now visible to all students.`,
-        [
-          {
-            text: 'View in My Events',
-            onPress: () => router.push('/(organizer)/my-events'),
-          },
-        ]
-      );
-    }, 600);
+    }
   };
 
   return (
@@ -70,35 +154,33 @@ export default function CreateEventScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Banner Image Box */}
-        <TouchableOpacity
-          style={[styles.bannerPicker, bannerUploaded && styles.bannerPickerUploaded]}
-          onPress={() => setBannerUploaded(!bannerUploaded)}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={bannerUploaded ? 'image' : 'cloud-upload-outline'}
-            size={36}
-            color={bannerUploaded ? Colors.light.secondary : Colors.light.textSecondary}
-          />
-          <Text style={styles.bannerPickerTitle}>
-            {bannerUploaded ? 'Event Poster Selected (Tap to Replace)' : 'Upload Event Poster / Banner'}
+        {/* Header Title */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Publish Campus Event</Text>
+          <Text style={styles.headerSubtitle}>
+            Create an academic, technical, or cultural event for the student body
           </Text>
-          <Text style={styles.bannerPickerSub}>High quality landscape banner (16:9 ratio)</Text>
-        </TouchableOpacity>
+        </View>
 
-        {/* Title Input */}
+        {/* Poster / Image Picker */}
+        <ImagePickerBox imageUri={imageUri} onImageSelected={setImageUri} />
+
+        {/* Title */}
         <AppTextInput
           label="Event Title *"
           placeholder="e.g. National Hackathon 2026"
           value={title}
-          onChangeText={setTitle}
+          onChangeText={(val) => {
+            setTitle(val);
+            if (errors.title) setErrors((prev) => ({ ...prev, title: '' }));
+          }}
+          error={errors.title}
           icon="calendar-outline"
         />
 
         {/* Category Selector */}
-        <View style={styles.categoryContainer}>
-          <Text style={styles.label}>Event Category *</Text>
+        <View style={styles.fieldSection}>
+          <Text style={styles.fieldLabel}>Category *</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -116,74 +198,142 @@ export default function CreateEventScreen() {
           </ScrollView>
         </View>
 
-        {/* Venue & Max Capacity */}
+        {/* Venue & Capacity Row */}
         <View style={styles.row}>
           <View style={{ flex: 2 }}>
             <AppTextInput
               label="Venue / Room *"
               placeholder="e.g. Main Auditorium"
               value={venue}
-              onChangeText={setVenue}
+              onChangeText={(val) => {
+                setVenue(val);
+                if (errors.venue) setErrors((prev) => ({ ...prev, venue: '' }));
+              }}
+              error={errors.venue}
               icon="location-outline"
             />
           </View>
 
           <View style={{ flex: 1 }}>
             <AppTextInput
-              label="Max Seats"
+              label="Max Seats *"
               placeholder="100"
               value={capacity}
-              onChangeText={setCapacity}
+              onChangeText={(val) => {
+                setCapacity(val);
+                if (errors.capacity) setErrors((prev) => ({ ...prev, capacity: '' }));
+              }}
+              error={errors.capacity}
               keyboardType="number-pad"
               icon="people-outline"
             />
           </View>
         </View>
 
-        {/* Date & Time */}
+        {/* Start Date & Time */}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <AppTextInput
-              label="Date"
+              label="Start Date *"
               placeholder="YYYY-MM-DD"
-              value={date}
-              onChangeText={setDate}
-              icon="time-outline"
+              value={startDate}
+              onChangeText={(val) => {
+                setStartDate(val);
+                if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: '' }));
+              }}
+              error={errors.startDate}
+              icon="calendar"
             />
           </View>
 
           <View style={{ flex: 1 }}>
             <AppTextInput
-              label="Start Time"
+              label="Start Time *"
               placeholder="10:00 AM"
-              value={time}
-              onChangeText={setTime}
-              icon="alarm-outline"
+              value={startTime}
+              onChangeText={(val) => {
+                setStartTime(val);
+                if (errors.startTime) setErrors((prev) => ({ ...prev, startTime: '' }));
+              }}
+              error={errors.startTime}
+              icon="time-outline"
             />
           </View>
         </View>
 
-        {/* Description */}
+        {/* End Date & Time */}
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label="End Date *"
+              placeholder="YYYY-MM-DD"
+              value={endDate}
+              onChangeText={(val) => {
+                setEndDate(val);
+                if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: '' }));
+              }}
+              error={errors.endDate}
+              icon="calendar"
+            />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <AppTextInput
+              label="End Time *"
+              placeholder="04:00 PM"
+              value={endTime}
+              onChangeText={(val) => {
+                setEndTime(val);
+                if (errors.endTime) setErrors((prev) => ({ ...prev, endTime: '' }));
+              }}
+              error={errors.endTime}
+              icon="time-outline"
+            />
+          </View>
+        </View>
+
+        {/* Description & Guidelines */}
         <AppTextInput
-          label="Description & Event Rules"
-          placeholder="Describe rules, prerequisites, prize pool, or schedule breakdown..."
+          label="Description & Event Guidelines *"
+          placeholder="Describe rules, prerequisites, prize pool, mentors, or schedule breakdown..."
           value={description}
-          onChangeText={setDescription}
+          onChangeText={(val) => {
+            setDescription(val);
+            if (errors.description) setErrors((prev) => ({ ...prev, description: '' }));
+          }}
+          error={errors.description}
           multiline
           numberOfLines={4}
           style={styles.textArea}
         />
 
-        {/* Action Button */}
-        <AppButton
-          title="Publish Campus Event"
-          variant="secondary"
-          size="lg"
-          icon="sparkles"
-          isLoading={isSubmitting}
-          onPress={handlePublish}
-          style={styles.submitBtn}
-        />
+        {/* Organizer Attribution Banner */}
+        <View style={styles.organizerMetaBox}>
+          <Text style={styles.organizerMetaTitle}>ORGANIZER INFORMATION</Text>
+          <Text style={styles.organizerMetaName}>{user?.name || 'Tech & Cultural Council'}</Text>
+          <Text style={styles.organizerMetaSub}>{user?.email || 'organizer@campus.edu'}</Text>
+        </View>
+
+        {/* Buttons: Publish vs Save Draft */}
+        <View style={styles.buttonStack}>
+          <AppButton
+            title="Publish Event"
+            variant="secondary"
+            size="lg"
+            icon="sparkles"
+            isLoading={isSubmitting}
+            onPress={() => handlePublish('published')}
+          />
+
+          <AppButton
+            title="Save as Draft"
+            variant="outline"
+            size="md"
+            icon="document-text-outline"
+            disabled={isSubmitting}
+            onPress={() => handlePublish('draft')}
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -198,36 +348,24 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     paddingBottom: Spacing.six,
   },
-  bannerPicker: {
-    backgroundColor: Colors.light.card,
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1.5,
-    borderColor: Colors.light.border,
-    borderStyle: 'dashed',
-    padding: Spacing.four,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.half,
+  header: {
     marginBottom: Spacing.three,
   },
-  bannerPickerUploaded: {
-    borderColor: Colors.light.secondary,
-    backgroundColor: Colors.light.secondaryLight,
-    borderStyle: 'solid',
-  },
-  bannerPickerTitle: {
-    fontSize: Typography.size.sm,
-    fontWeight: Typography.weight.bold,
+  headerTitle: {
+    fontSize: Typography.size.xl,
+    fontWeight: Typography.weight.heavy,
     color: Colors.light.text,
   },
-  bannerPickerSub: {
+  headerSubtitle: {
     fontSize: Typography.size.xs,
-    color: Colors.light.textTertiary,
+    color: Colors.light.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
   },
-  categoryContainer: {
+  fieldSection: {
     marginBottom: Spacing.three,
   },
-  label: {
+  fieldLabel: {
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.semibold,
     color: Colors.light.text,
@@ -242,10 +380,36 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   textArea: {
-    minHeight: 90,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
-  submitBtn: {
+  organizerMetaBox: {
+    backgroundColor: Colors.light.backgroundElement,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.three,
+    marginVertical: Spacing.two,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  organizerMetaTitle: {
+    fontSize: Typography.size.xs - 1,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.textTertiary,
+    letterSpacing: 0.5,
+  },
+  organizerMetaName: {
+    fontSize: Typography.size.sm,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
+    marginTop: 2,
+  },
+  organizerMetaSub: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+    marginTop: 1,
+  },
+  buttonStack: {
+    gap: Spacing.two,
     marginTop: Spacing.two,
   },
 });

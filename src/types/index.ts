@@ -53,8 +53,10 @@ export interface Registration {
   studentRollNumber?: string;
   studentDepartment?: string;
   eventTitle?: string;
+  eventCategory?: EventCategory;
   eventStartDate?: string;
   eventVenue?: string;
+  organizerName?: string;
   registrationDate: string;
   status: RegistrationStatus;
   ticketCode: string;

@@ -6,65 +6,68 @@ import {
   ScrollView,
   Alert,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useEvents } from '@/context/EventContext';
+import { useAuth } from '@/context/AuthContext';
 import { Registration } from '@/types';
-import { AppButton, EmptyState, StatusBadge } from '@/components/common';
+import { AppButton, EmptyState, LoadingIndicator, StatusBadge } from '@/components/common';
+import { CategoryChip } from '@/components/events';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/theme';
-
-const INITIAL_REGISTRATIONS: Registration[] = [
-  {
-    id: 'reg_1',
-    eventId: 'evt_1',
-    studentId: 'usr_student_01',
-    eventTitle: 'HackCampus 2026: 24h Hackathon',
-    eventStartDate: '2026-10-15T09:00:00Z',
-    eventVenue: 'Main Auditorium & Lab 4',
-    registrationDate: '2026-10-01T14:30:00Z',
-    status: 'registered',
-    ticketCode: 'CC-HACK-84920',
-  },
-  {
-    id: 'reg_2',
-    eventId: 'evt_3',
-    studentId: 'usr_student_01',
-    eventTitle: 'Cloud & AI Workshop with Industry Experts',
-    eventStartDate: '2026-10-28T14:00:00Z',
-    eventVenue: 'MCA Computer Lab 3',
-    registrationDate: '2026-10-02T11:15:00Z',
-    status: 'registered',
-    ticketCode: 'CC-AIWS-19342',
-  },
-];
 
 export default function MyTicketsScreen() {
   const router = useRouter();
-  const [registrations, setRegistrations] = useState<Registration[]>(INITIAL_REGISTRATIONS);
+  const { user } = useAuth();
+  const { getStudentRegistrations, cancelRegistration, isLoading } = useEvents();
 
-  const handleCancelRegistration = (id: string, title?: string) => {
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const currentStudentId = user?.id || 'usr_student_01';
+  const registrations: Registration[] = getStudentRegistrations(currentStudentId);
+
+  const handleCancelPass = (registration: Registration) => {
     Alert.alert(
       'Cancel Event Pass',
-      `Are you sure you want to cancel your pass for "${title}"? This ticket will become invalid.`,
+      `Are you sure you want to cancel your pass for "${registration.eventTitle}"? Your ticket (${registration.ticketCode}) will be voided.`,
       [
-        { text: 'Keep My Pass', style: 'cancel' },
+        { text: 'Keep Pass', style: 'cancel' },
         {
           text: 'Yes, Cancel Pass',
           style: 'destructive',
-          onPress: () => {
-            setRegistrations((prev) => prev.filter((r) => r.id !== id));
+          onPress: async () => {
+            setCancellingId(registration.id);
+            try {
+              const res = await cancelRegistration(registration.eventId, currentStudentId);
+              if (res.success) {
+                Alert.alert('Pass Cancelled', 'Your registration has been removed.');
+              } else {
+                Alert.alert('Error', res.error || 'Failed to cancel pass.');
+              }
+            } finally {
+              setCancellingId(null);
+            }
           },
         },
       ]
     );
   };
 
+  const handleOpenDetails = (eventId: string) => {
+    router.push(`/event/${eventId}` as any);
+  };
+
+  if (isLoading) {
+    return <LoadingIndicator fullScreen message="Loading your passes..." />;
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>Your Digital Passes</Text>
         <Text style={styles.subtitle}>
-          Present these passes at campus entry gates for digital verification
+          Tap any pass to view full event guidelines or show verification code at entry
         </Text>
       </View>
 
@@ -73,68 +76,107 @@ export default function MyTicketsScreen() {
           title="No Active Passes Found"
           description="You haven't reserved tickets for any events yet. Explore upcoming campus events and reserve your spot!"
           icon="ticket-outline"
-          actionTitle="Browse Events"
+          actionTitle="Browse Campus Events"
           onActionPress={() => router.push('/(student)/events')}
         />
       ) : (
-        registrations.map((ticket) => (
-          <View key={ticket.id} style={[styles.ticketCard, Shadows.md]}>
-            {/* Ticket Header */}
-            <View style={styles.ticketTop}>
-              <View style={styles.badgeRow}>
-                <StatusBadge label="Confirmed Pass" status="success" icon="checkmark-circle" />
-                <Text style={styles.ticketCode}>{ticket.ticketCode}</Text>
-              </View>
+        registrations.map((ticket) => {
+          const startDateObj = new Date(ticket.eventStartDate || '');
+          const formattedDate = !isNaN(startDateObj.getTime())
+            ? startDateObj.toLocaleDateString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : ticket.eventStartDate || 'Date TBA';
 
-              <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
-            </View>
+          const formattedTime = !isNaN(startDateObj.getTime())
+            ? startDateObj.toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '';
 
-            {/* Perforated Cutout Divider */}
-            <View style={styles.perforationContainer}>
-              <View style={styles.leftCutout} />
-              <View style={styles.dashedLine} />
-              <View style={styles.rightCutout} />
-            </View>
+          return (
+            <TouchableOpacity
+              key={ticket.id}
+              activeOpacity={0.9}
+              onPress={() => handleOpenDetails(ticket.eventId)}
+            >
+              <View style={[styles.ticketCard, Shadows.md]}>
+                {/* Ticket Top Section */}
+                <View style={styles.ticketTop}>
+                  <View style={styles.badgeRow}>
+                    <View style={styles.badgeGroup}>
+                      <StatusBadge
+                        label="Confirmed Pass"
+                        status="success"
+                        icon="checkmark-circle"
+                        size="sm"
+                      />
+                      {ticket.eventCategory && (
+                        <CategoryChip category={ticket.eventCategory} size="sm" showIcon={false} />
+                      )}
+                    </View>
+                    <Text style={styles.ticketCode}>{ticket.ticketCode}</Text>
+                  </View>
 
-            {/* Ticket Details */}
-            <View style={styles.ticketBottom}>
-              <View style={styles.infoRow}>
-                <View style={styles.infoCol}>
-                  <Text style={styles.infoLabel}>DATE</Text>
-                  <Text style={styles.infoValue}>
-                    {new Date(ticket.eventStartDate || '').toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </Text>
+                  <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
+
+                  {ticket.organizerName && (
+                    <View style={styles.organizerRow}>
+                      <Ionicons name="people-outline" size={13} color={Colors.light.textSecondary} />
+                      <Text style={styles.organizerText}>Organized by {ticket.organizerName}</Text>
+                    </View>
+                  )}
                 </View>
-                <View style={styles.infoCol}>
-                  <Text style={styles.infoLabel}>VENUE</Text>
-                  <Text style={styles.infoValue} numberOfLines={1}>
-                    {ticket.eventVenue}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.actionRow}>
-                <View style={styles.qrPlaceholder}>
-                  <Ionicons name="qr-code-outline" size={24} color={Colors.light.primary} />
-                  <Text style={styles.qrText}>Digital QR Verified</Text>
+                {/* Perforated Divider */}
+                <View style={styles.perforationContainer}>
+                  <View style={styles.leftCutout} />
+                  <View style={styles.dashedLine} />
+                  <View style={styles.rightCutout} />
                 </View>
 
-                <AppButton
-                  title="Cancel Pass"
-                  variant="danger"
-                  size="sm"
-                  fullWidth={false}
-                  icon="close-circle-outline"
-                  onPress={() => handleCancelRegistration(ticket.id, ticket.eventTitle)}
-                />
+                {/* Ticket Bottom Section */}
+                <View style={styles.ticketBottom}>
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoCol}>
+                      <Text style={styles.infoLabel}>DATE & TIME</Text>
+                      <Text style={styles.infoValue}>
+                        {formattedDate} {formattedTime ? `• ${formattedTime}` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.infoCol}>
+                      <Text style={styles.infoLabel}>VENUE</Text>
+                      <Text style={styles.infoValue} numberOfLines={1}>
+                        {ticket.eventVenue}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.actionRow}>
+                    <View style={styles.qrPlaceholder}>
+                      <Ionicons name="qr-code-outline" size={24} color={Colors.light.primary} />
+                      <Text style={styles.qrText}>Digital Pass Verified</Text>
+                    </View>
+
+                    <AppButton
+                      title="Cancel Pass"
+                      variant="danger"
+                      size="sm"
+                      fullWidth={false}
+                      icon="close-circle-outline"
+                      isLoading={cancellingId === ticket.id}
+                      onPress={() => handleCancelPass(ticket)}
+                    />
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
-        ))
+            </TouchableOpacity>
+          );
+        })
       )}
     </ScrollView>
   );
@@ -162,6 +204,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.sm,
     color: Colors.light.textSecondary,
     marginTop: 2,
+    lineHeight: 18,
   },
   ticketCard: {
     backgroundColor: Colors.light.card,
@@ -180,6 +223,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.two,
   },
+  badgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
   ticketCode: {
     fontSize: Typography.size.xs,
     fontWeight: Typography.weight.bold,
@@ -190,6 +238,18 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.md,
     fontWeight: Typography.weight.bold,
     color: Colors.light.text,
+    marginBottom: 4,
+  },
+  organizerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  organizerText: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+    fontStyle: 'italic',
   },
   perforationContainer: {
     flexDirection: 'row',
@@ -233,6 +293,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Spacing.three,
+    gap: Spacing.two,
   },
   infoCol: {
     flex: 1,

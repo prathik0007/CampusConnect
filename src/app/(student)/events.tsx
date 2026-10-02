@@ -1,124 +1,170 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CampusEvent, EventCategory } from '@/types';
-import { SearchBar, EmptyState } from '@/components/common';
+import { useEvents } from '@/context/EventContext';
+import { useAuth } from '@/context/AuthContext';
+import { SearchBar, EmptyState, LoadingIndicator } from '@/components/common';
 import { CategoryChip, EventCard } from '@/components/events';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
-const MOCK_EVENTS: CampusEvent[] = [
-  {
-    id: 'evt_1',
-    title: 'HackCampus 2026: 24h Hackathon',
-    description: 'Build real-world software solutions with team mentorship and win cash prizes.',
-    category: 'Technical',
-    bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80',
-    startDate: '2026-10-15T09:00:00Z',
-    endDate: '2026-10-16T09:00:00Z',
-    venue: 'Campus Main Auditorium',
-    maxCapacity: 150,
-    registeredCount: 84,
-    organizerId: 'usr_org_1',
-    organizerName: 'Coding & Robotics Club',
-    status: 'published',
-  },
-  {
-    id: 'evt_2',
-    title: 'Verve 2026: Inter-College Cultural Fest',
-    description: 'Music, dance, street play, and fine arts competitions with celebrity performances.',
-    category: 'Cultural',
-    bannerUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop&q=80',
-    startDate: '2026-10-22T10:00:00Z',
-    endDate: '2026-10-23T20:00:00Z',
-    venue: 'Open Air Amphitheatre',
-    maxCapacity: 500,
-    registeredCount: 320,
-    organizerId: 'usr_org_2',
-    organizerName: 'Student Cultural Committee',
-    status: 'published',
-  },
-  {
-    id: 'evt_3',
-    title: 'Cloud & AI Workshop with Industry Experts',
-    description: 'Hands-on masterclass on building LLM agents and containerized microservices.',
-    category: 'Workshop',
-    bannerUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=800&auto=format&fit=crop&q=80',
-    startDate: '2026-10-28T14:00:00Z',
-    endDate: '2026-10-28T17:00:00Z',
-    venue: 'MCA Computer Lab 3',
-    maxCapacity: 60,
-    registeredCount: 45,
-    organizerId: 'usr_org_1',
-    organizerName: 'Dept of Computer Applications',
-    status: 'published',
-  },
-  {
-    id: 'evt_4',
-    title: 'Inter-Department Badminton Tournament',
-    description: 'Singles and doubles knockout tournament for boys and girls.',
-    category: 'Sports',
-    bannerUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80',
-    startDate: '2026-11-04T08:30:00Z',
-    endDate: '2026-11-05T18:00:00Z',
-    venue: 'Indoor Sports Complex Court 1 & 2',
-    maxCapacity: 64,
-    registeredCount: 52,
-    organizerId: 'usr_org_3',
-    organizerName: 'Sports Department',
-    status: 'published',
-  },
-];
-
-const FILTER_CATEGORIES: (EventCategory | 'All')[] = [
+const ALL_FILTER_CATEGORIES: (EventCategory | 'All')[] = [
   'All',
   'Technical',
   'Cultural',
-  'Workshop',
   'Sports',
+  'Workshop',
   'Seminar',
+  'Other',
 ];
 
 export default function StudentEventsScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ category?: string }>();
+  const { user } = useAuth();
+  const {
+    events,
+    isLoading,
+    refreshEvents,
+    isRegistered,
+    registerForEvent,
+    cancelRegistration,
+  } = useEvents();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'All'>('All');
-  const [registeredEvents, setRegisteredEvents] = useState<string[]>(['evt_1']);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  const filteredEvents = MOCK_EVENTS.filter((evt) => {
+  const currentStudentId = user?.id || 'usr_student_01';
+
+  // Handle incoming category param from Home Screen shortcuts
+  useEffect(() => {
+    if (params.category && ALL_FILTER_CATEGORIES.includes(params.category as any)) {
+      setSelectedCategory(params.category as EventCategory);
+    }
+  }, [params.category]);
+
+  // Pull to refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshEvents();
+    setRefreshing(false);
+  };
+
+  // Filter events by Search Query (Title, Venue, Organizer) and Category
+  const filteredEvents = events.filter((evt) => {
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      evt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      evt.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      evt.organizerName.toLowerCase().includes(searchQuery.toLowerCase());
+      q === '' ||
+      evt.title.toLowerCase().includes(q) ||
+      evt.venue.toLowerCase().includes(q) ||
+      evt.organizerName.toLowerCase().includes(q) ||
+      evt.description.toLowerCase().includes(q);
+
     const matchesCategory =
       selectedCategory === 'All' || evt.category === selectedCategory;
+
     return matchesSearch && matchesCategory;
   });
 
-  const handleRegisterToggle = (event: CampusEvent) => {
-    if (registeredEvents.includes(event.id)) {
-      setRegisteredEvents((prev) => prev.filter((id) => id !== event.id));
+  // Navigate to Event Details
+  const handleCardPress = (event: CampusEvent) => {
+    router.push(`/event/${event.id}` as any);
+  };
+
+  // Direct Register/Cancel on Card
+  const handleRegisterToggle = async (event: CampusEvent) => {
+    const registered = isRegistered(event.id, currentStudentId);
+
+    if (registered) {
+      Alert.alert(
+        'Cancel Registration',
+        `Do you want to release your reserved pass for "${event.title}"?`,
+        [
+          { text: 'Keep Ticket', style: 'cancel' },
+          {
+            text: 'Yes, Cancel',
+            style: 'destructive',
+            onPress: async () => {
+              setActionLoadingId(event.id);
+              try {
+                await cancelRegistration(event.id, currentStudentId);
+              } finally {
+                setActionLoadingId(null);
+              }
+            },
+          },
+        ]
+      );
     } else {
-      setRegisteredEvents((prev) => [...prev, event.id]);
+      if (event.registeredCount >= event.maxCapacity) {
+        Alert.alert('Capacity Full', 'This event has no remaining seats.');
+        return;
+      }
+
+      setActionLoadingId(event.id);
+      try {
+        const studentInfo = {
+          id: currentStudentId,
+          name: user?.name || 'Prathik Kumar',
+          rollNumber: user?.rollNumber || 'MCA2024042',
+          department: user?.department || 'MCA',
+        };
+
+        const result = await registerForEvent(event.id, studentInfo);
+        if (result.success) {
+          Alert.alert(
+            'Success! 🎉',
+            `Pass confirmed for "${event.title}".\n\nTicket Code: ${result.ticketCode}`
+          );
+        } else {
+          Alert.alert('Registration Notice', result.error || 'Unable to register.');
+        }
+      } finally {
+        setActionLoadingId(null);
+      }
     }
   };
 
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('All');
+  };
+
+  const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All';
+
+  if (isLoading && !refreshing) {
+    return <LoadingIndicator fullScreen message="Loading events catalog..." />;
+  }
+
   return (
     <View style={styles.container}>
-      {/* Search Input */}
+      {/* Search Header */}
       <View style={styles.searchHeader}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search events, venues, organizers..."
+          placeholder="Search by title, venue, or club organizer..."
         />
       </View>
 
-      {/* Category Filter Chips */}
+      {/* Category Filter Chips Bar */}
       <View style={styles.filterSection}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
-          {FILTER_CATEGORIES.map((cat) => (
+          {ALL_FILTER_CATEGORIES.map((cat) => (
             <CategoryChip
               key={cat}
               category={cat}
@@ -130,31 +176,49 @@ export default function StudentEventsScreen() {
         </ScrollView>
       </View>
 
-      {/* Events List */}
-      <ScrollView contentContainerStyle={styles.listContent}>
+      {/* Events List View */}
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.light.primary}
+          />
+        }
+      >
         <View style={styles.countRow}>
           <Text style={styles.resultCount}>
             Showing {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'}
           </Text>
+
+          {hasActiveFilters && (
+            <TouchableOpacity onPress={handleResetFilters} style={styles.resetBtn}>
+              <Text style={styles.resetText}>Clear Filters</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {filteredEvents.length === 0 ? (
           <EmptyState
-            title="No Matching Events Found"
-            description="Try changing your search terms or selecting a different category."
-            actionTitle="Reset Filters"
-            onActionPress={() => {
-              setSearchQuery('');
-              setSelectedCategory('All');
-            }}
+            title="No Events Found"
+            description={
+              hasActiveFilters
+                ? 'No campus events match your search query or selected category filter.'
+                : 'There are currently no upcoming events published.'
+            }
+            actionTitle={hasActiveFilters ? 'Clear All Filters' : undefined}
+            onActionPress={hasActiveFilters ? handleResetFilters : undefined}
           />
         ) : (
           filteredEvents.map((evt) => (
             <EventCard
               key={evt.id}
               event={evt}
-              isRegistered={registeredEvents.includes(evt.id)}
+              isRegistered={isRegistered(evt.id, currentStudentId)}
+              onPress={handleCardPress}
               onRegisterPress={handleRegisterToggle}
+              actionLoading={actionLoadingId === evt.id}
             />
           ))
         )}
@@ -189,11 +253,25 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.seven,
   },
   countRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.two,
   },
   resultCount: {
     fontSize: Typography.size.sm,
     color: Colors.light.textSecondary,
     fontWeight: Typography.weight.semibold,
+  },
+  resetBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: Spacing.two,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.light.backgroundElement,
+  },
+  resetText: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.primary,
+    fontWeight: Typography.weight.bold,
   },
 });

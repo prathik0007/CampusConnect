@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,110 +6,156 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
-interface DayEvent {
-  id: string;
-  day: number;
-  weekday: string;
-  hasEvents: boolean;
-}
-
-const DAYS_OCTOBER: DayEvent[] = [
-  { id: '1', day: 12, weekday: 'Mon', hasEvents: false },
-  { id: '2', day: 13, weekday: 'Tue', hasEvents: false },
-  { id: '3', day: 14, weekday: 'Wed', hasEvents: true },
-  { id: '4', day: 15, weekday: 'Thu', hasEvents: true },
-  { id: '5', day: 16, weekday: 'Fri', hasEvents: true },
-  { id: '6', day: 17, weekday: 'Sat', hasEvents: false },
-  { id: '7', day: 18, weekday: 'Sun', hasEvents: false },
-  { id: '8', day: 22, weekday: 'Thu', hasEvents: true },
-  { id: '9', day: 28, weekday: 'Wed', hasEvents: true },
-];
-
-const SCHEDULE_ITEMS = [
-  {
-    id: 's1',
-    day: 15,
-    time: '09:00 AM - 11:30 AM',
-    title: 'HackCampus 2026: Opening Ceremony & Problem Release',
-    venue: 'Main Auditorium',
-    type: 'Keynote & Launch',
-    category: 'Technical',
-  },
-  {
-    id: 's2',
-    day: 15,
-    time: '01:30 PM - 03:00 PM',
-    title: 'Round 1 Code Evaluation & Mentorship Clinic',
-    venue: 'MCA Lab 4',
-    type: 'Hackathon Round',
-    category: 'Technical',
-  },
-  {
-    id: 's3',
-    day: 16,
-    time: '10:00 AM - 01:00 PM',
-    title: 'Final Project Demonstrations & Jury Pitching',
-    venue: 'Seminar Hall B',
-    type: 'Evaluation',
-    category: 'Technical',
-  },
-  {
-    id: 's4',
-    day: 22,
-    time: '10:00 AM - 08:00 PM',
-    title: 'Verve Cultural Fest: Day 1 Music & Drama Finals',
-    venue: 'Amphitheatre',
-    type: 'Cultural Festival',
-    category: 'Cultural',
-  },
-];
+import { useEvents } from '@/context/EventContext';
+import { CampusEvent } from '@/types';
+import { AppButton, EmptyState } from '@/components/common';
+import { CategoryChip } from '@/components/events';
+import { BorderRadius, CategoryTheme, Colors, Shadows, Spacing, Typography } from '@/constants/theme';
 
 export default function StudentCalendarScreen() {
-  const [selectedDay, setSelectedDay] = useState(15);
+  const router = useRouter();
+  const { events } = useEvents();
 
-  const selectedEvents = SCHEDULE_ITEMS.filter((item) => item.day === selectedDay);
+  // Selected Month: 9 for October (0-indexed), 10 for November 2026
+  const [selectedMonth, setSelectedMonth] = useState<number>(9); // October
+  const [selectedYear] = useState<number>(2026);
+  const [selectedDay, setSelectedDay] = useState<number>(15);
+
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  // Map of days in the selected month that have events
+  const daysWithEvents = useMemo(() => {
+    const map = new Map<number, CampusEvent[]>();
+    events.forEach((evt) => {
+      const d = new Date(evt.startDate);
+      if (d.getFullYear() === selectedYear && d.getMonth() === selectedMonth) {
+        const dayNum = d.getDate();
+        const existing = map.get(dayNum) || [];
+        existing.push(evt);
+        map.set(dayNum, existing);
+      }
+    });
+    return map;
+  }, [events, selectedMonth, selectedYear]);
+
+  // Generate calendar days for the horizontal strip (1 to daysInMonth)
+  const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  // Events on the currently selected day
+  const eventsForSelectedDay = daysWithEvents.get(selectedDay) || [];
+
+  const handleOpenEvent = (event: CampusEvent) => {
+    router.push(`/event/${event.id}` as any);
+  };
+
+  const handlePrevMonth = () => {
+    if (selectedMonth > 0) {
+      setSelectedMonth(selectedMonth - 1);
+      setSelectedDay(1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth < 11) {
+      setSelectedMonth(selectedMonth + 1);
+      setSelectedDay(1);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Month Header */}
+      {/* Month Navigator Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.monthTitle}>October 2026</Text>
-          <Text style={styles.monthSubtitle}>Campus Academic & Event Calendar</Text>
+        <View style={styles.monthSelector}>
+          <TouchableOpacity
+            style={styles.navArrow}
+            onPress={handlePrevMonth}
+            disabled={selectedMonth <= 8} // limit to Fall 2026 semester
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={selectedMonth <= 8 ? Colors.light.textTertiary : Colors.light.text}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.monthDisplay}>
+            <Text style={styles.monthTitle}>
+              {monthNames[selectedMonth]} {selectedYear}
+            </Text>
+            <Text style={styles.semesterSubtitle}>Fall Semester 2026</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.navArrow}
+            onPress={handleNextMonth}
+            disabled={selectedMonth >= 11}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={selectedMonth >= 11 ? Colors.light.textTertiary : Colors.light.text}
+            />
+          </TouchableOpacity>
         </View>
-        <View style={styles.monthBadge}>
-          <Ionicons name="calendar" size={16} color="#2563EB" />
-          <Text style={styles.monthBadgeText}>Semester 3</Text>
+
+        <View style={styles.eventsTallyPill}>
+          <Ionicons name="calendar-outline" size={13} color={Colors.light.primary} />
+          <Text style={styles.tallyText}>
+            {daysWithEvents.size} event {daysWithEvents.size === 1 ? 'date' : 'dates'}
+          </Text>
         </View>
       </View>
 
-      {/* Date Carousel */}
-      <View style={styles.carouselContainer}>
+      {/* Date Selector Carousel */}
+      <View style={styles.carouselWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carouselScroll}
         >
-          {DAYS_OCTOBER.map((d) => {
-            const isSelected = selectedDay === d.day;
+          {daysArray.map((dayNum) => {
+            const dateObj = new Date(selectedYear, selectedMonth, dayNum);
+            const weekday = dateObj.toLocaleDateString(undefined, { weekday: 'narrow' });
+            const isSelected = selectedDay === dayNum;
+            const hasEvents = daysWithEvents.has(dayNum);
+
             return (
               <TouchableOpacity
-                key={d.id}
+                key={dayNum}
                 style={[
                   styles.dayCard,
                   isSelected && styles.dayCardSelected,
+                  hasEvents && !isSelected && styles.dayCardHasEvents,
                 ]}
-                onPress={() => setSelectedDay(d.day)}
+                onPress={() => setSelectedDay(dayNum)}
+                activeOpacity={0.8}
               >
                 <Text style={[styles.weekdayText, isSelected && styles.textWhite]}>
-                  {d.weekday}
+                  {weekday}
                 </Text>
                 <Text style={[styles.dayNumber, isSelected && styles.textWhite]}>
-                  {d.day}
+                  {dayNum}
                 </Text>
-                {d.hasEvents && (
+                {hasEvents && (
                   <View
                     style={[
                       styles.eventDot,
@@ -123,39 +169,81 @@ export default function StudentCalendarScreen() {
         </ScrollView>
       </View>
 
-      {/* Daily Agenda */}
+      {/* Daily Agenda List */}
       <ScrollView contentContainerStyle={styles.agendaContent}>
         <View style={styles.agendaHeader}>
-          <Text style={styles.agendaTitle}>Schedule for October {selectedDay}</Text>
-          <Text style={styles.agendaCount}>{selectedEvents.length} events scheduled</Text>
+          <Text style={styles.agendaDateTitle}>
+            {monthNames[selectedMonth]} {selectedDay}, {selectedYear}
+          </Text>
+          <Text style={styles.agendaEventCount}>
+            {eventsForSelectedDay.length} {eventsForSelectedDay.length === 1 ? 'event' : 'events'} scheduled
+          </Text>
         </View>
 
-        {selectedEvents.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-clear-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No events scheduled on this day</Text>
-            <Text style={styles.emptySubtitle}>Select another date with event dots to view events</Text>
-          </View>
+        {eventsForSelectedDay.length === 0 ? (
+          <EmptyState
+            title="No Events On This Date"
+            description="There are no campus activities scheduled on this day. Tap another date marked with a blue indicator dot."
+            icon="calendar-clear-outline"
+            actionTitle="View All Events"
+            onActionPress={() => router.push('/(student)/events')}
+          />
         ) : (
-          selectedEvents.map((evt) => (
-            <View key={evt.id} style={styles.eventItem}>
-              <View style={styles.timeColumn}>
-                <Ionicons name="time-outline" size={14} color="#2563EB" />
-                <Text style={styles.timeText}>{evt.time}</Text>
-              </View>
+          eventsForSelectedDay.map((evt) => {
+            const startDate = new Date(evt.startDate);
+            const endDate = new Date(evt.endDate);
+            const timeStr = `${startDate.toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+            })} - ${endDate.toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`;
 
-              <View style={styles.eventDetailsCard}>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>{evt.category}</Text>
+            return (
+              <TouchableOpacity
+                key={evt.id}
+                style={[styles.eventAgendaCard, Shadows.sm]}
+                onPress={() => handleOpenEvent(evt)}
+                activeOpacity={0.85}
+              >
+                {/* Left Time Column */}
+                <View style={styles.timeBadgeColumn}>
+                  <Ionicons name="time" size={14} color={Colors.light.primary} />
+                  <Text style={styles.agendaTimeText}>{timeStr}</Text>
                 </View>
-                <Text style={styles.eventItemTitle}>{evt.title}</Text>
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={14} color="#64748B" />
-                  <Text style={styles.venueText}>{evt.venue}</Text>
+
+                {/* Event Information */}
+                <View style={styles.eventInfoSection}>
+                  <View style={styles.chipRow}>
+                    <CategoryChip category={evt.category} size="sm" />
+                    <Text style={styles.seatsLeftText}>
+                      {Math.max(0, evt.maxCapacity - evt.registeredCount)} spots left
+                    </Text>
+                  </View>
+
+                  <Text style={styles.agendaEventTitle}>{evt.title}</Text>
+
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color={Colors.light.textSecondary} />
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {evt.venue}
+                    </Text>
+                  </View>
+
+                  <View style={styles.organizerRow}>
+                    <Ionicons name="people-outline" size={13} color={Colors.light.textTertiary} />
+                    <Text style={styles.organizerText}>{evt.organizerName}</Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-          ))
+
+                {/* Arrow */}
+                <View style={styles.arrowCol}>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.light.textTertiary} />
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -165,179 +253,197 @@ export default function StudentCalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.light.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.two,
+    backgroundColor: Colors.light.card,
   },
-  monthTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  monthSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  monthBadge: {
+  monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
+    gap: Spacing.two,
+  },
+  navArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.light.backgroundElement,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthDisplay: {
+    alignItems: 'flex-start',
+  },
+  monthTitle: {
+    fontSize: Typography.size.lg,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
+  },
+  semesterSubtitle: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+  },
+  eventsTallyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.light.primaryLight,
+    paddingHorizontal: Spacing.two,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: BorderRadius.sm,
     gap: 4,
   },
-  monthBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
+  tallyText: {
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.primary,
   },
-  carouselContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
+  carouselWrapper: {
+    backgroundColor: Colors.light.card,
+    paddingVertical: Spacing.two,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: Colors.light.border,
   },
   carouselScroll: {
-    paddingHorizontal: 16,
-    gap: 10,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.one,
   },
   dayCard: {
-    width: 58,
-    height: 76,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    width: 52,
+    height: 70,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.light.backgroundElement,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   dayCardSelected: {
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
+  dayCardHasEvents: {
+    borderColor: '#BFDBFE',
+    backgroundColor: '#F0F7FF',
   },
   weekdayText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
+    fontSize: Typography.size.xs,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.light.textSecondary,
   },
   dayNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: Typography.size.md,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
   },
   textWhite: {
     color: '#FFFFFF',
   },
   eventDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginTop: 2,
   },
   eventDotInactive: {
-    backgroundColor: '#2563EB',
+    backgroundColor: Colors.light.primary,
   },
   eventDotActive: {
     backgroundColor: '#FFFFFF',
   },
   agendaContent: {
-    padding: 20,
-    gap: 14,
+    padding: Spacing.three,
+    gap: Spacing.two,
+    paddingBottom: Spacing.six,
   },
   agendaHeader: {
-    marginBottom: 4,
+    marginBottom: Spacing.one,
   },
-  agendaTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+  agendaDateTitle: {
+    fontSize: Typography.size.md,
+    fontWeight: Typography.weight.heavy,
+    color: Colors.light.text,
   },
-  agendaCount: {
-    fontSize: 12,
-    color: '#64748B',
+  agendaEventCount: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
     marginTop: 2,
   },
-  emptyState: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
+  eventAgendaCard: {
+    backgroundColor: Colors.light.card,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.three,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 12,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  eventItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  timeColumn: {
+    borderColor: Colors.light.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: Spacing.two,
   },
-  timeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  eventDetailsCard: {
+  timeBadgeColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.primaryLight,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.md,
+    minWidth: 80,
     gap: 4,
   },
-  categoryBadge: {
-    backgroundColor: '#EFF6FF',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 4,
+  agendaTimeText: {
+    fontSize: Typography.size.xs - 1,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.primary,
+    textAlign: 'center',
+    lineHeight: 14,
   },
-  categoryBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2563EB',
+  eventInfoSection: {
+    flex: 1,
+    gap: 3,
   },
-  eventItemTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  seatsLeftText: {
+    fontSize: Typography.size.xs - 1,
+    color: Colors.light.secondary,
+    fontWeight: Typography.weight.semibold,
+  },
+  agendaEventTitle: {
+    fontSize: Typography.size.base,
+    fontWeight: Typography.weight.bold,
+    color: Colors.light.text,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
+    marginTop: 2,
   },
-  venueText: {
-    fontSize: 12,
-    color: '#64748B',
+  locationText: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textSecondary,
+  },
+  organizerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  organizerText: {
+    fontSize: Typography.size.xs,
+    color: Colors.light.textTertiary,
+    fontStyle: 'italic',
+  },
+  arrowCol: {
+    paddingLeft: Spacing.one,
   },
 });

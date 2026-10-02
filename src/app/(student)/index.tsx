@@ -8,39 +8,48 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { useEvents } from '@/context/EventContext';
 import { Ionicons } from '@expo/vector-icons';
 import { CampusEvent, EventCategory } from '@/types';
-import { AppCard } from '@/components/common/AppCard';
+import { AppCard, LoadingIndicator } from '@/components/common';
 import { CategoryChip, EventCard } from '@/components/events';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
-const FEATURED_EVENT: CampusEvent = {
-  id: 'evt_1',
-  title: 'HackCampus 2026: 24h Hackathon',
-  description: 'Annual state-level tech hackathon with cash prizes, mentor sessions, and internship opportunities.',
-  category: 'Technical',
-  bannerUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80',
-  startDate: '2026-10-15T09:00:00Z',
-  endDate: '2026-10-16T09:00:00Z',
-  venue: 'Campus Auditorium & Lab 4',
-  maxCapacity: 150,
-  registeredCount: 84,
-  organizerId: 'usr_org_1',
-  organizerName: 'Coding Club & MCA Council',
-  status: 'published',
-};
-
-const CATEGORIES: EventCategory[] = [
+const ALL_CATEGORIES: EventCategory[] = [
   'Technical',
   'Cultural',
   'Sports',
   'Workshop',
   'Seminar',
+  'Other',
 ];
 
 export default function StudentHomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { events, isLoading, isRegistered, getStudentRegistrations } = useEvents();
+
+  const currentStudentId = user?.id || 'usr_student_01';
+  const myRegistrations = getStudentRegistrations(currentStudentId);
+
+  // Pick first event as featured, and subsequent events as upcoming
+  const featuredEvent: CampusEvent | undefined = events[0];
+  const upcomingEvents: CampusEvent[] = events.slice(1);
+
+  const navigateToEventDetails = (event: CampusEvent) => {
+    router.push(`/event/${event.id}` as any);
+  };
+
+  const navigateToEventsWithCategory = (category: EventCategory) => {
+    router.push({
+      pathname: '/(student)/events',
+      params: { category },
+    });
+  };
+
+  if (isLoading) {
+    return <LoadingIndicator fullScreen message="Loading Campus Events..." />;
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -51,7 +60,8 @@ export default function StudentHomeScreen() {
             <Text style={styles.greeting}>Welcome back 👋</Text>
             <Text style={styles.userName}>{user?.name || 'Prathik Kumar'}</Text>
             <Text style={styles.userDept}>
-              {user?.department || 'MCA'} • {user?.rollNumber || 'Student'}
+              {user?.department || 'Department of Computer Applications (MCA)'} •{' '}
+              {user?.rollNumber || 'MCA2024042'}
             </Text>
           </View>
           <TouchableOpacity
@@ -66,16 +76,26 @@ export default function StudentHomeScreen() {
 
       {/* Quick Summary Cards */}
       <View style={styles.statsRow}>
-        <AppCard style={styles.statCard} variant="outlined" padding="md">
+        <AppCard
+          style={styles.statCard}
+          variant="outlined"
+          padding="md"
+          onPress={() => router.push('/(student)/events')}
+        >
           <Ionicons name="calendar-outline" size={22} color={Colors.light.primary} />
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Upcoming Events</Text>
+          <Text style={styles.statNumber}>{events.length}</Text>
+          <Text style={styles.statLabel}>Campus Events</Text>
         </AppCard>
 
-        <AppCard style={styles.statCard} variant="outlined" padding="md">
+        <AppCard
+          style={styles.statCard}
+          variant="outlined"
+          padding="md"
+          onPress={() => router.push('/(student)/my-tickets')}
+        >
           <Ionicons name="ticket-outline" size={22} color={Colors.light.secondary} />
-          <Text style={styles.statNumber}>2</Text>
-          <Text style={styles.statLabel}>Registered Passes</Text>
+          <Text style={styles.statNumber}>{myRegistrations.length}</Text>
+          <Text style={styles.statLabel}>My Passes</Text>
         </AppCard>
       </View>
 
@@ -84,34 +104,63 @@ export default function StudentHomeScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Browse Categories</Text>
           <TouchableOpacity onPress={() => router.push('/(student)/events')}>
-            <Text style={styles.seeAllText}>See all</Text>
+            <Text style={styles.seeAllText}>View All ({events.length})</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
-          {CATEGORIES.map((cat) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesRow}
+        >
+          {ALL_CATEGORIES.map((cat) => (
             <CategoryChip
               key={cat}
               category={cat}
-              onPress={() => router.push('/(student)/events')}
+              onPress={() => navigateToEventsWithCategory(cat)}
               size="md"
             />
           ))}
         </ScrollView>
       </View>
 
-      {/* Featured Event Preview */}
+      {/* Featured Event Section */}
+      {featuredEvent && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Featured Campus Event</Text>
+            <TouchableOpacity onPress={() => navigateToEventDetails(featuredEvent)}>
+              <Text style={styles.seeAllText}>Details</Text>
+            </TouchableOpacity>
+          </View>
+
+          <EventCard
+            event={featuredEvent}
+            isRegistered={isRegistered(featuredEvent.id, currentStudentId)}
+            onPress={navigateToEventDetails}
+            onRegisterPress={navigateToEventDetails}
+          />
+        </View>
+      )}
+
+      {/* Upcoming Events Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Featured Event</Text>
+          <Text style={styles.sectionTitle}>Upcoming Events</Text>
+          <TouchableOpacity onPress={() => router.push('/(student)/events')}>
+            <Text style={styles.seeAllText}>See all ({upcomingEvents.length})</Text>
+          </TouchableOpacity>
         </View>
 
-        <EventCard
-          event={FEATURED_EVENT}
-          isRegistered={true}
-          onPress={() => router.push('/(student)/events')}
-          onRegisterPress={() => router.push('/(student)/events')}
-        />
+        {upcomingEvents.slice(0, 3).map((evt) => (
+          <EventCard
+            key={evt.id}
+            event={evt}
+            isRegistered={isRegistered(evt.id, currentStudentId)}
+            onPress={navigateToEventDetails}
+            onRegisterPress={navigateToEventDetails}
+          />
+        ))}
       </View>
     </ScrollView>
   );
@@ -155,6 +204,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.size.xs,
     color: Colors.light.textSecondary,
     marginTop: Spacing.one,
+    lineHeight: 16,
   },
   notifButton: {
     width: 44,
@@ -165,6 +215,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#BFDBFE',
+    marginLeft: Spacing.two,
   },
   statsRow: {
     flexDirection: 'row',

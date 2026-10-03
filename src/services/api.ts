@@ -519,3 +519,57 @@ export const registrationApi = {
   },
 };
 
+export interface UploadBannerResponse {
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+  format: string;
+}
+
+export const uploadApi = {
+  /**
+   * Upload event banner image to Cloudinary
+   * POST /api/uploads/event-banner
+   */
+  async uploadEventBanner(
+    imageUri: string,
+    token: string
+  ): Promise<ApiResponse<UploadBannerResponse>> {
+    try {
+      const formData = new FormData();
+
+      // Extract filename from URI
+      const filename = imageUri.split('/').pop() || 'banner.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const ext = match ? match[1].toLowerCase() : 'jpg';
+      let type = 'image/jpeg';
+      if (ext === 'png') type = 'image/png';
+      else if (ext === 'webp') type = 'image/webp';
+
+      // React Native FormData expects an object with uri, name, and type
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any);
+
+      const response = await safeFetch(`${API_BASE_URL}/uploads/event-banner`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Note: Do not set Content-Type header manually for FormData so boundary is generated automatically
+        },
+        body: formData,
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to upload event banner',
+      };
+    }
+  },
+};
+

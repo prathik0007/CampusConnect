@@ -138,6 +138,25 @@ Content-Type: application/json
 }
 ```
 
+#### Uploads Endpoints (Phase 5F-A)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/uploads/event-banner` | Protected (`organizer`, `admin`) | Upload event banner image to Cloudinary (folder: `campusconnect/events`). Validates JPEG, JPG, PNG, WEBP up to 5 MB. Returns secure HTTPS URL. |
+
+#### Sample Event Banner Upload Request (`POST /api/uploads/event-banner`):
+```http
+POST /api/uploads/event-banner
+Authorization: Bearer <jwt_organizer_token>
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="image"; filename="hackathon_banner.png"
+Content-Type: image/png
+
+<binary data>
+------WebKitFormBoundary--
+```
+
 ### 6. Optional Database Seeding
 To populate the database with initial demo data (students, organizers, events, registration, notification), run:
 

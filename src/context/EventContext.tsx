@@ -3,7 +3,7 @@ import { CampusEvent, Registration } from '@/types';
 import { INITIAL_MOCK_EVENTS } from '@/data/mockEvents';
 import { appStorage } from '@/utils/storage';
 import { useAuth } from '@/context/AuthContext';
-import { eventApi, registrationApi } from '@/services/api';
+import { eventApi, registrationApi, uploadApi } from '@/services/api';
 
 interface RegisterStudentParams {
   id: string;
@@ -49,6 +49,7 @@ interface EventContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   getAttendeesForEvent: (eventId: string) => Registration[];
   fetchAttendeesForEvent: (eventId: string) => Promise<Registration[]>;
+  uploadBanner: (imageUri: string) => Promise<{ success: boolean; url?: string; error?: string }>;
 }
 
 
@@ -678,6 +679,23 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     return registrations.filter((r) => r.eventId === eventId);
   };
 
+  const uploadBanner = async (
+    imageUri: string
+  ): Promise<{ success: boolean; url?: string; error?: string }> => {
+    try {
+      if (!token) {
+        return { success: false, error: 'Authentication required to upload image.' };
+      }
+      const res = await uploadApi.uploadEventBanner(imageUri, token);
+      if (res.success && res.data?.url) {
+        return { success: true, url: res.data.url };
+      }
+      return { success: false, error: res.message || 'Image upload failed.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to upload image.' };
+    }
+  };
+
   return (
     <EventContext.Provider
       value={{
@@ -697,6 +715,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
         markAttendance,
         getAttendeesForEvent,
         fetchAttendeesForEvent,
+        uploadBanner,
       }}
     >
       {children}

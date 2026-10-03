@@ -32,7 +32,7 @@ const STATUS_OPTIONS: EventStatus[] = ['published', 'draft', 'cancelled', 'compl
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getEventById, updateEvent, isLoading } = useEvents();
+  const { getEventById, updateEvent, uploadBanner, isLoading } = useEvents();
 
   const event = id ? getEventById(id) : undefined;
 
@@ -130,13 +130,28 @@ export default function EditEventScreen() {
 
     setIsSubmitting(true);
     try {
+      let finalBannerUrl = imageUri;
+
+      // If organizer picked a new local image from device, upload it to Cloudinary
+      if (imageUri && !imageUri.startsWith('http://') && !imageUri.startsWith('https://')) {
+        const uploadRes = await uploadBanner(imageUri);
+        if (!uploadRes.success || !uploadRes.url) {
+          Alert.alert(
+            'Upload Failed',
+            uploadRes.error || 'Failed to upload event banner to cloud storage. Please check connection and try again.'
+          );
+          return;
+        }
+        finalBannerUrl = uploadRes.url;
+      }
+
       const res = await updateEvent(event!.id, {
         title: title.trim(),
         category,
         venue: venue.trim(),
         maxCapacity: parseInt(capacity, 10),
         description: description.trim(),
-        bannerUrl: imageUri,
+        bannerUrl: finalBannerUrl,
         status,
       });
 

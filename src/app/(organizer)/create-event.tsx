@@ -29,7 +29,7 @@ const CATEGORIES: EventCategory[] = [
 export default function CreateEventScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { createEvent } = useEvents();
+  const { createEvent, uploadBanner } = useEvents();
 
   // Form State
   const [title, setTitle] = useState('');
@@ -108,6 +108,21 @@ export default function CreateEventScreen() {
 
     setIsSubmitting(true);
     try {
+      let finalBannerUrl = imageUri;
+
+      // If a local image URI was selected (from device camera/gallery), upload it to Cloudinary first
+      if (imageUri && !imageUri.startsWith('http://') && !imageUri.startsWith('https://')) {
+        const uploadRes = await uploadBanner(imageUri);
+        if (!uploadRes.success || !uploadRes.url) {
+          Alert.alert(
+            'Upload Failed',
+            uploadRes.error || 'Failed to upload event banner to cloud storage. Please check connection and try again.'
+          );
+          return;
+        }
+        finalBannerUrl = uploadRes.url;
+      }
+
       // Build ISO timestamps or structured date strings
       const startDateTimeIso = `${startDate.trim()}T${startTime.includes(':') ? '09:00:00.000Z' : '09:00:00.000Z'}`;
       const endDateTimeIso = `${endDate.trim()}T${endTime.includes(':') ? '17:00:00.000Z' : '17:00:00.000Z'}`;
@@ -117,7 +132,7 @@ export default function CreateEventScreen() {
         description: description.trim(),
         category,
         bannerUrl:
-          imageUri ||
+          finalBannerUrl ||
           'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1000&auto=format&fit=crop&q=80',
         startDate: startDateTimeIso,
         endDate: endDateTimeIso,

@@ -13,6 +13,21 @@ const notFoundHandler = (req, res, next) => {
  * Handles all errors passed via next(err) or uncaught in routes
  */
 const errorHandler = (err, req, res, next) => {
+  // Handle Multer upload errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      success: false,
+      message: 'File size exceeds maximum allowed limit of 5 MB.',
+    });
+  }
+
+  if (err.name === 'MulterError') {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
   // If status code is 200 (OK), default to 500 (Internal Server Error)
   const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : (err.statusCode || 500);
 

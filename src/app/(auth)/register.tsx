@@ -40,15 +40,21 @@ export default function RegisterScreen() {
       setError('Please provide your college roll number.');
       return;
     }
+    if (!password.trim() || password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
 
     const res = await register({
       name: name.trim(),
       email: email.trim(),
+      password: password.trim(),
       department,
       rollNumber: rollNumber.trim().toUpperCase(),
       phone: phone.trim(),
       role: 'student',
     });
+
 
     if (res.success) {
       router.replace('/(student)/index');

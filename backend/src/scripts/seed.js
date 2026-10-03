@@ -41,34 +41,38 @@ const seedData = async () => {
     ]);
 
     console.log('[Seed] Creating demo users...');
+    const { hashPassword } = require('../utils/password');
+    const demoPasswordHash = await hashPassword('Campus@123');
+
     const users = await User.create([
       {
-        name: 'Alex Rivera',
-        email: 'alex.rivera@campus.edu',
-        passwordHash: '$2b$10$demo_hash_placeholder_for_phase5b_student',
+        name: 'Prathik Kumar',
+        email: 'student@campus.edu',
+        passwordHash: demoPasswordHash,
         role: 'student',
-        department: 'Computer Science',
-        rollNumber: 'CS-2024-042',
-        phone: '+1 555-0142',
+        department: 'Computer Applications (MCA)',
+        rollNumber: 'MCA2024042',
+        phone: '+91 9876543210',
       },
       {
-        name: 'Sarah Chen',
-        email: 'sarah.chen@campus.edu',
-        passwordHash: '$2b$10$demo_hash_placeholder_for_phase5b_organizer',
+        name: 'Tech & Cultural Council',
+        email: 'organizer@campus.edu',
+        passwordHash: demoPasswordHash,
         role: 'organizer',
-        department: 'Information Technology',
+        department: 'Department of Computer Applications',
         rollNumber: 'IT-2023-018',
-        phone: '+1 555-0189',
+        phone: '+91 9876500000',
       },
       {
         name: 'Dean Marcus Vance',
         email: 'admin@campus.edu',
-        passwordHash: '$2b$10$demo_hash_placeholder_for_phase5b_admin',
+        passwordHash: demoPasswordHash,
         role: 'admin',
         department: 'Administration',
         phone: '+1 555-0100',
       },
     ]);
+
 
     const student = users[0];
     const organizer = users[1];

@@ -36,8 +36,8 @@ export default function LoginScreen() {
     }
 
     const res = await login(loginEmail, password, roleOverride);
-    if (res.success) {
-      if (roleOverride === 'organizer' || loginEmail.includes('organizer')) {
+    if (res.success && res.user) {
+      if (res.user.role === 'organizer') {
         router.replace('/(organizer)/index');
       } else {
         router.replace('/(student)/index');
@@ -45,6 +45,7 @@ export default function LoginScreen() {
     } else {
       setError(res.error || 'Login failed. Please check credentials.');
     }
+
   };
 
   return (

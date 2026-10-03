@@ -9,11 +9,13 @@ backend/
 ├── src/
 │   ├── config/             # Environment & database connection loaders
 │   │   ├── database.js     # Mongoose connection & event lifecycle
-│   │   └── index.js        # Environment configuration
+│   │   └── index.js        # Environment configuration (PORT, DB, JWT)
 │   ├── controllers/        # Request handlers & controller logic
+│   │   ├── authController.js   # Real authentication (register, login, me)
 │   │   └── healthController.js # Health check & DB status
 │   ├── middleware/         # Central error-handling & request filters
-│   │   └── errorHandler.js # 404 & Central error handling
+│   │   ├── authMiddleware.js   # JWT authentication & role-based authorization
+│   │   └── errorHandler.js     # 404 & Central error handling
 │   ├── models/             # Mongoose database models & schemas
 │   │   ├── User.js         # User schema (student, organizer, admin)
 │   │   ├── Event.js        # Event schema with status & capacity
@@ -21,11 +23,15 @@ backend/
 │   │   ├── Notification.js # Notification schema with recipient & read status
 │   │   └── index.js        # Export aggregator for models
 │   ├── routes/             # Express API routing tables
+│   │   ├── authRoutes.js   # /api/auth routes (register, login, me)
 │   │   ├── healthRoutes.js # /api/health route
 │   │   └── index.js        # Main API router aggregator
 │   ├── scripts/            # Utility scripts
-│   │   └── seed.js         # Optional database seeding script
+│   │   └── seed.js         # Optional database seeding script (real bcrypt hashes)
 │   ├── services/           # Business logic & 3rd-party services (future phases)
+│   ├── utils/              # Helper utilities
+│   │   ├── jwt.js          # Token signing & verification
+│   │   └── password.js     # Bcrypt password hashing & comparison
 │   └── app.js              # Express app initialization & server listener
 ├── .env                    # Local environment variables (git-ignored)
 ├── .env.example            # Template for environment variables
@@ -56,11 +62,13 @@ Copy the `.env.example` file to create your local `.env`:
 cp .env.example .env
 ```
 
-Configure your local `.env` with your actual MongoDB URI:
+Configure your local `.env` with your actual MongoDB URI and JWT Secret:
 ```env
 PORT=5000
 NODE_ENV=development
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/campusconnect?retryWrites=true&w=majority
+JWT_SECRET=your_long_random_jwt_secret
+JWT_EXPIRES_IN=7d
 ```
 
 > **Security Note:** Never commit `.env` or hardcode credentials into the source code. `.env` is listed in `.gitignore`.
@@ -77,33 +85,46 @@ npm run dev
 npm start
 ```
 
-### 5. Health Check Endpoint
-Once the server is running, verify the API and MongoDB connection status:
+### 5. API Endpoints
 
-```bash
-GET http://localhost:5000/api/health
-```
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/api/health` | Public | Check service and database connection health |
+| `POST` | `/api/auth/register` | Public | Register new student or organizer |
+| `POST` | `/api/auth/login` | Public | Sign in with email and password, receives JWT |
+| `GET` | `/api/auth/me` | Protected (`Bearer <token>`) | Get profile of authenticated user |
 
-Expected response when MongoDB is connected:
-```json
+#### Sample Registration Request:
+```http
+POST /api/auth/register
+Content-Type: application/json
+
 {
-  "success": true,
-  "message": "CampusConnect API is running",
-  "database": "connected",
-  "timestamp": "2026-10-03T04:35:00.000Z",
-  "environment": "development"
+  "name": "Prathik Kumar",
+  "email": "prathik@campus.edu",
+  "password": "Password@123",
+  "role": "student",
+  "department": "Computer Applications (MCA)",
+  "rollNumber": "MCA2024042",
+  "phone": "+91 9876543210"
 }
 ```
 
-If MongoDB is disconnected:
-```json
+#### Sample Login Request:
+```http
+POST /api/auth/login
+Content-Type: application/json
+
 {
-  "success": false,
-  "message": "CampusConnect API is running, but database is not connected",
-  "database": "disconnected",
-  "timestamp": "2026-10-03T04:35:00.000Z",
-  "environment": "development"
+  "email": "prathik@campus.edu",
+  "password": "Password@123"
 }
+```
+
+#### Sample Protected Profile Request:
+```http
+GET /api/auth/me
+Authorization: Bearer <jwt_token>
 ```
 
 ### 6. Optional Database Seeding
@@ -114,14 +135,3 @@ npm run seed
 ```
 
 > **Note:** This script is **strictly optional** and must be triggered manually. It is never executed automatically.
-
----
-
-## Database Models & Indexes
-
-| Model | Key Fields | Indexes |
-|---|---|---|
-| **User** | `name`, `email`, `passwordHash`, `role` (student/organizer/admin), `department`, `rollNumber`, `phone`, `avatarUrl`, `pushToken` | `email` (unique) |
-| **Event** | `title`, `description`, `category`, `bannerUrl`, `startDate`, `endDate`, `venue`, `maxCapacity`, `registeredCount`, `organizerId`, `status`, `organizerDetails` | `organizerId`, `category`, `startDate`, `status`, compound `{ status, startDate }` |
-| **Registration** | `eventId`, `studentId`, `registrationDate`, `status`, `ticketCode`, `attendedAt` | Compound unique `{ eventId, studentId }`, `ticketCode` (unique), `studentId` |
-| **Notification** | `recipientId`, `eventId`, `title`, `message`, `isRead`, `type`, `createdAt` | `recipientId`, `createdAt`, compound `{ recipientId, isRead }` |

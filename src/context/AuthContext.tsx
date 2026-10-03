@@ -1,14 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, UserRole } from '@/types';
 import { appStorage } from '@/utils/storage';
+import { authApi } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password?: string, forceRole?: UserRole) => Promise<{ success: boolean; error?: string }>;
-  register: (userData: { name: string; email: string; department?: string; rollNumber?: string; phone?: string; role?: UserRole }) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password?: string, forceRole?: UserRole) => Promise<{ success: boolean; user?: User; error?: string }>;
+  register: (userData: {
+    name: string;
+    email: string;
+    password?: string;
+    department?: string;
+    rollNumber?: string;
+    phone?: string;
+    role?: UserRole;
+  }) => Promise<{ success: boolean; user?: User; error?: string }>;
+
   logout: () => Promise<void>;
   switchRole: (role: UserRole) => Promise<void>;
 }
@@ -18,30 +28,8 @@ const STORAGE_KEYS = {
   TOKEN: 'campusconnect_token',
 };
 
-// Preset mock accounts for demonstration & development
-export const MOCK_USERS = {
-  student: {
-    id: 'usr_student_01',
-    name: 'Prathik Kumar',
-    email: 'student@campus.edu',
-    role: 'student' as UserRole,
-    department: 'Computer Applications (MCA)',
-    rollNumber: 'MCA2024042',
-    phone: '+91 9876543210',
-    avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    createdAt: new Date().toISOString(),
-  },
-  organizer: {
-    id: 'usr_organizer_01',
-    name: 'Tech & Cultural Council',
-    email: 'organizer@campus.edu',
-    role: 'organizer' as UserRole,
-    department: 'Department of Computer Applications',
-    phone: '+91 9876500000',
-    avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
-    createdAt: new Date().toISOString(),
-  },
-};
+// Default fallback password for quick demo access buttons
+const DEMO_PASSWORD = 'Campus@123';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -50,19 +38,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore stored session on startup
+  // Restore stored session on startup with backend validation via GET /api/auth/me
   useEffect(() => {
     async function loadStoredAuth() {
       try {
-        const storedUser = await appStorage.getItem(STORAGE_KEYS.USER);
         const storedToken = await appStorage.getItem(STORAGE_KEYS.TOKEN);
 
-        if (storedUser && storedToken) {
-          setUser(JSON.parse(storedUser));
-          setToken(storedToken);
+        if (storedToken) {
+          // Validate stored token against the real backend
+          const res = await authApi.getMe(storedToken);
+
+          if (res.success && res.data?.user) {
+            setUser(res.data.user);
+            setToken(storedToken);
+            await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data.user));
+          } else {
+            // Token is invalid, expired, or user deleted: clear local session
+            console.log('[AuthContext] Session expired or invalid; clearing stored session.');
+            await appStorage.removeItem(STORAGE_KEYS.USER);
+            await appStorage.removeItem(STORAGE_KEYS.TOKEN);
+            setUser(null);
+            setToken(null);
+          }
         }
       } catch (err) {
-        console.warn('Failed to restore auth session:', err);
+        console.warn('[AuthContext] Error validating stored session:', err);
+        // Fallback: If network is offline, check cached user
+        const storedUser = await appStorage.getItem(STORAGE_KEYS.USER);
+        const storedToken = await appStorage.getItem(STORAGE_KEYS.TOKEN);
+        if (storedUser && storedToken) {
+          try {
+            setUser(JSON.parse(storedUser));
+            setToken(storedToken);
+          } catch {
+            // Ignore parse errors
+          }
+        }
       } finally {
         setIsLoading(false);
       }
@@ -73,34 +84,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (
     email: string,
-    _password?: string,
+    password?: string,
     forceRole?: UserRole
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; user?: User; error?: string }> => {
+
     setIsLoading(true);
     try {
-      // Mock auth logic:
-      // If email includes 'organizer' or forced role is 'organizer', authenticate as organizer
-      const isOrganizer = forceRole === 'organizer' || email.toLowerCase().includes('organizer');
-      const authenticatedUser: User = isOrganizer
-        ? {
-            ...MOCK_USERS.organizer,
-            email: email.trim().toLowerCase() || MOCK_USERS.organizer.email,
-          }
-        : {
-            ...MOCK_USERS.student,
-            email: email.trim().toLowerCase() || MOCK_USERS.student.email,
-          };
+      const trimmedEmail = email.trim().toLowerCase();
+      // If user clicked quick demo access, resolve standard demo password
+      const resolvedPassword =
+        password && password.trim()
+          ? password
+          : trimmedEmail === 'student@campus.edu' ||
+            trimmedEmail === 'organizer@campus.edu' ||
+            forceRole
+          ? DEMO_PASSWORD
+          : '';
 
-      const mockToken = `mock_jwt_token_${authenticatedUser.role}_${Date.now()}`;
+      if (!resolvedPassword) {
+        return { success: false, error: 'Password is required to sign in' };
+      }
 
-      await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authenticatedUser));
-      await appStorage.setItem(STORAGE_KEYS.TOKEN, mockToken);
+      const res = await authApi.login({
+        email: trimmedEmail,
+        password: resolvedPassword,
+      });
 
-      setUser(authenticatedUser);
-      setToken(mockToken);
-      return { success: true };
+      if (res.success && res.data) {
+        const { user: authenticatedUser, token: authToken } = res.data;
+
+        await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authenticatedUser));
+        await appStorage.setItem(STORAGE_KEYS.TOKEN, authToken);
+
+        setUser(authenticatedUser);
+        setToken(authToken);
+        return { success: true, user: authenticatedUser };
+      } else {
+        return { success: false, error: res.message || 'Invalid email or password' };
+      }
     } catch (err: any) {
-      return { success: false, error: err.message || 'Login failed' };
+      return { success: false, error: err.message || 'Login failed. Please check network connection.' };
     } finally {
       setIsLoading(false);
     }
@@ -109,35 +132,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: {
     name: string;
     email: string;
+    password?: string;
     department?: string;
     rollNumber?: string;
     phone?: string;
     role?: UserRole;
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<{ success: boolean; user?: User; error?: string }> => {
     setIsLoading(true);
     try {
-      const newUser: User = {
-        id: `usr_${Date.now()}`,
-        name: userData.name,
+      const res = await authApi.register({
+        name: userData.name.trim(),
         email: userData.email.trim().toLowerCase(),
+        password: userData.password?.trim() || DEMO_PASSWORD,
         role: userData.role || 'student',
-        department: userData.department || 'Computer Applications (MCA)',
-        rollNumber: userData.rollNumber || `MCA${Math.floor(1000 + Math.random() * 9000)}`,
-        phone: userData.phone || '',
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=2563EB&color=fff`,
-        createdAt: new Date().toISOString(),
-      };
+        department: userData.department?.trim(),
+        rollNumber: userData.rollNumber?.trim().toUpperCase(),
+        phone: userData.phone?.trim(),
+      });
 
-      const mockToken = `mock_jwt_token_${newUser.role}_${Date.now()}`;
+      if (res.success && res.data) {
+        const { user: newUser, token: authToken } = res.data;
 
-      await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
-      await appStorage.setItem(STORAGE_KEYS.TOKEN, mockToken);
+        await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+        await appStorage.setItem(STORAGE_KEYS.TOKEN, authToken);
 
-      setUser(newUser);
-      setToken(mockToken);
-      return { success: true };
+        setUser(newUser);
+        setToken(authToken);
+        return { success: true, user: newUser };
+      } else {
+        return { success: false, error: res.message || 'Registration failed' };
+      }
+
     } catch (err: any) {
-      return { success: false, error: err.message || 'Registration failed' };
+      return { success: false, error: err.message || 'Registration error. Please try again.' };
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +184,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = async (role: UserRole): Promise<void> => {
     if (!user) return;
-    const switchedUser: User = role === 'organizer' ? MOCK_USERS.organizer : MOCK_USERS.student;
+    const switchedUser: User = {
+      ...user,
+      role,
+    };
     await appStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(switchedUser));
     setUser(switchedUser);
   };

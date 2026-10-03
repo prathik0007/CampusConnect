@@ -25,6 +25,39 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Backend Setup (Node.js + Express)
+
+The backend service is located in the [`backend/`](./backend/) directory.
+
+### Quick Start:
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Ensure `.env` is configured (copy from `.env.example` if needed):
+   ```bash
+   PORT=5000
+   NODE_ENV=development
+   ```
+
+4. Start the backend development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Verify health check:
+   ```bash
+   GET http://localhost:5000/api/health
+   ```
+
+
 ## Get a fresh project
 
 When you're ready, run:

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Registration = require('../models/Registration');
 const Event = require('../models/Event');
 const { generateTicketCode } = require('../utils/ticketCode');
+const { createNotification } = require('../services/notificationService');
 
 /**
  * Register current authenticated student for an event
@@ -143,6 +144,20 @@ const registerForEvent = async (req, res, next) => {
       await session.commitTransaction();
       session.endSession();
     }
+
+    // Asynchronously create registration_success notification (failsafe: does not block or break registration)
+    createNotification({
+      recipientId: studentId,
+      eventId: updatedEvent._id,
+      title: 'Registration Successful',
+      message: `You are registered for ${updatedEvent.title}.`,
+      type: 'registration_success',
+      data: {
+        ticketCode: registration.ticketCode,
+      },
+    }).catch((err) => {
+      console.warn('[Registration Notification] Warning:', err.message);
+    });
 
     return res.status(201).json({
       success: true,

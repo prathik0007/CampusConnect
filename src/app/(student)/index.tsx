@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CampusEvent, EventCategory } from '@/types';
 import { AppCard, LoadingIndicator } from '@/components/common';
 import { CategoryChip, EventCard } from '@/components/events';
+import { notificationApi } from '@/services/api';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/theme';
 
 const ALL_CATEGORIES: EventCategory[] = [
@@ -26,8 +27,19 @@ const ALL_CATEGORIES: EventCategory[] = [
 
 export default function StudentHomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { events, isLoading, isRegistered, getStudentRegistrations } = useEvents();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (token) {
+      notificationApi.getNotifications(token, { limit: 1 }).then((res) => {
+        if (res.success && res.data) {
+          setUnreadCount(res.data.unreadCount);
+        }
+      }).catch(() => {});
+    }
+  }, [token]);
 
   const currentStudentId = user?.id || 'usr_student_01';
   const myRegistrations = getStudentRegistrations(currentStudentId);
@@ -66,10 +78,15 @@ export default function StudentHomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.notifButton}
-            onPress={() => router.push('/(student)/events')}
+            onPress={() => router.push('/(student)/notifications' as any)}
             activeOpacity={0.8}
           >
             <Ionicons name="notifications-outline" size={22} color={Colors.light.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </AppCard>
@@ -216,6 +233,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
     marginLeft: Spacing.two,
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',

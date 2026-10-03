@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { CampusEvent, EventStatus, Registration, User, UserRole } from '@/types';
+import { CampusEvent, EventStatus, Notification, Registration, User, UserRole } from '@/types';
 
 
 
@@ -568,6 +568,117 @@ export const uploadApi = {
       return {
         success: false,
         message: err.message || 'Failed to upload event banner',
+      };
+    }
+  },
+};
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  unreadCount: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export const notificationApi = {
+  /**
+   * Register or update Expo push token on the backend
+   * POST /api/notifications/register-token
+   */
+  async registerPushToken(pushToken: string, token: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/notifications/register-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pushToken }),
+      });
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to register push token',
+      };
+    }
+  },
+
+  /**
+   * Retrieve current user's notifications
+   * GET /api/notifications
+   */
+  async getNotifications(
+    token: string,
+    params?: { unreadOnly?: boolean; page?: number; limit?: number }
+  ): Promise<ApiResponse<NotificationListResponse>> {
+    try {
+      const queryParts: string[] = [];
+      if (params?.unreadOnly) queryParts.push('unreadOnly=true');
+      if (params?.page) queryParts.push(`page=${params.page}`);
+      if (params?.limit) queryParts.push(`limit=${params.limit}`);
+      const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
+      const response = await safeFetch(`${API_BASE_URL}/notifications${qs}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to fetch notifications',
+      };
+    }
+  },
+
+  /**
+   * Mark a notification as read
+   * PATCH /api/notifications/:id/read
+   */
+  async markAsRead(id: string, token: string): Promise<ApiResponse<{ notification: Notification }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to mark notification read',
+      };
+    }
+  },
+
+  /**
+   * Mark all notifications as read
+   * PATCH /api/notifications/read-all
+   */
+  async markAllAsRead(token: string): Promise<ApiResponse<{ updatedCount: number }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/notifications/read-all`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to mark all notifications read',
       };
     }
   },

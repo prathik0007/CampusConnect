@@ -143,18 +143,23 @@ Content-Type: application/json
 |---|---|---|---|
 | `POST` | `/api/uploads/event-banner` | Protected (`organizer`, `admin`) | Upload event banner image to Cloudinary (folder: `campusconnect/events`). Validates JPEG, JPG, PNG, WEBP up to 5 MB. Returns secure HTTPS URL. |
 
-#### Sample Event Banner Upload Request (`POST /api/uploads/event-banner`):
+#### Notification Endpoints (Phase 5F-B)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/notifications/register-token` | Protected | Register/update user's Expo push notification token |
+| `GET` | `/api/notifications` | Protected | Retrieve notifications for authenticated user (supports `?unreadOnly=true`, `page`, `limit`) |
+| `PATCH` | `/api/notifications/:id/read` | Protected | Mark a single notification belonging to user as read |
+| `PATCH` | `/api/notifications/read-all` | Protected | Mark all unread notifications belonging to user as read |
+
+#### Sample Push Token Registration Request (`POST /api/notifications/register-token`):
 ```http
-POST /api/uploads/event-banner
-Authorization: Bearer <jwt_organizer_token>
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+POST /api/notifications/register-token
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
 
-------WebKitFormBoundary
-Content-Disposition: form-data; name="image"; filename="hackathon_banner.png"
-Content-Type: image/png
-
-<binary data>
-------WebKitFormBoundary--
+{
+  "pushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
 ```
 
 ### 6. Optional Database Seeding

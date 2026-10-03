@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const Event = require('../models/Event');
+const Registration = require('../models/Registration');
+const { sendNotificationToUsers } = require('../services/notificationService');
 
 const VALID_CATEGORIES = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Other'];
 const VALID_STATUSES = ['draft', 'published', 'cancelled', 'completed'];
@@ -321,7 +323,8 @@ const updateEvent = async (req, res, next) => {
     }
 
     // Authorization: Only the event's organizer or an admin can update
-    const isOwner = event.organizerId.toString() === req.user.id;
+    const currentUserId = req.user.id || req.user._id?.toString();
+    const isOwner = event.organizerId.toString() === currentUserId;
     const isAdmin = req.user.role === 'admin';
 
     if (!isOwner && !isAdmin) {
@@ -404,6 +407,30 @@ const updateEvent = async (req, res, next) => {
 
     await event.save();
 
+    // Notify active registered/attended students about event update (failsafe: does not block/fail response)
+    Registration.find({
+      eventId: event._id,
+      status: { $in: ['registered', 'attended'] },
+    })
+      .select('studentId')
+      .lean()
+      .then((activeRegistrations) => {
+        if (activeRegistrations.length > 0) {
+          const studentIds = activeRegistrations.map((r) => r.studentId);
+          sendNotificationToUsers(studentIds, {
+            eventId: event._id,
+            title: 'Event Updated',
+            message: `${event.title} has been updated.`,
+            type: 'event_update',
+          }).catch((notifErr) => {
+            console.warn('[Event Update Notification Error]:', notifErr.message);
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('[Event Update Notification Lookup Error]:', err.message);
+      });
+
     return res.status(200).json({
       success: true,
       message: 'Event updated successfully',
@@ -442,7 +469,8 @@ const deleteEvent = async (req, res, next) => {
     }
 
     // Authorization: Only the event's organizer or an admin can cancel
-    const isOwner = event.organizerId.toString() === req.user.id;
+    const currentUserId = req.user.id || req.user._id?.toString();
+    const isOwner = event.organizerId.toString() === currentUserId;
     const isAdmin = req.user.role === 'admin';
 
     if (!isOwner && !isAdmin) {
@@ -455,6 +483,30 @@ const deleteEvent = async (req, res, next) => {
     // Safe cancellation: update status to 'cancelled' without removing document from MongoDB
     event.status = 'cancelled';
     await event.save();
+
+    // Notify active registered/attended students about event cancellation (failsafe: does not block/fail response)
+    Registration.find({
+      eventId: event._id,
+      status: { $in: ['registered', 'attended'] },
+    })
+      .select('studentId')
+      .lean()
+      .then((activeRegistrations) => {
+        if (activeRegistrations.length > 0) {
+          const studentIds = activeRegistrations.map((r) => r.studentId);
+          sendNotificationToUsers(studentIds, {
+            eventId: event._id,
+            title: 'Event Cancelled',
+            message: `${event.title} has been cancelled.`,
+            type: 'cancellation',
+          }).catch((notifErr) => {
+            console.warn('[Event Cancellation Notification Error]:', notifErr.message);
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('[Event Cancellation Notification Lookup Error]:', err.message);
+      });
 
     return res.status(200).json({
       success: true,

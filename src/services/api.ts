@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
-import { CampusEvent, EventStatus, User, UserRole } from '@/types';
+import { CampusEvent, EventStatus, Registration, User, UserRole } from '@/types';
+
 
 
 /**
@@ -386,3 +387,135 @@ export const eventApi = {
     }
   },
 };
+
+export const registrationApi = {
+  /**
+   * Register for event
+   */
+  async registerForEvent(
+    eventId: string,
+    token: string
+  ): Promise<ApiResponse<{ registration: Registration; ticketCode: string; event: any }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${eventId}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to register for event',
+      };
+    }
+  },
+
+  /**
+   * Cancel registration
+   */
+  async cancelRegistration(
+    eventId: string,
+    token: string
+  ): Promise<ApiResponse<{ registration: Registration }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${eventId}/register`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to cancel registration',
+      };
+    }
+  },
+
+  /**
+   * Get student's tickets and registrations
+   */
+  async getMyRegistrations(
+    token: string,
+    status?: string
+  ): Promise<ApiResponse<{ registrations: Registration[] }>> {
+    try {
+      const query = status ? `?status=${status}` : '';
+      const response = await safeFetch(`${API_BASE_URL}/students/my-registrations${query}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to retrieve registrations',
+      };
+    }
+  },
+
+  /**
+   * Get attendee roster for event (Organizer/Admin)
+   */
+  async getEventAttendees(
+    eventId: string,
+    token: string
+  ): Promise<ApiResponse<{ event: any; attendees: Registration[] }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${eventId}/attendees`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to retrieve attendee list',
+      };
+    }
+  },
+
+  /**
+   * Update attendance status
+   */
+  async updateAttendance(
+    eventId: string,
+    studentId: string,
+    status: 'attended' | 'registered' | 'cancelled',
+    token: string
+  ): Promise<ApiResponse<{ registration: Registration }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${eventId}/attendees/${studentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      return await handleResponse(response);
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to update attendance status',
+      };
+    }
+  },
+};
+

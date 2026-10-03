@@ -18,7 +18,7 @@ type AttendanceFilter = 'All' | 'Present' | 'Pending';
 
 export default function OrganizerAttendeesScreen() {
   const params = useLocalSearchParams<{ eventId?: string }>();
-  const { events, getAttendeesForEvent, markAttendance, isLoading } = useEvents();
+  const { events, getAttendeesForEvent, fetchAttendeesForEvent, markAttendance, isLoading } = useEvents();
 
   // Selected event (default to passed param or first event)
   const [selectedEventId, setSelectedEventId] = useState<string>('');
@@ -34,6 +34,13 @@ export default function OrganizerAttendeesScreen() {
       setSelectedEventId(events[0].id);
     }
   }, [params.eventId, events]);
+
+  // Fetch attendees from real backend whenever selected event changes
+  useEffect(() => {
+    if (selectedEventId) {
+      fetchAttendeesForEvent(selectedEventId);
+    }
+  }, [selectedEventId]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || events[0];
   const attendees: Registration[] = selectedEvent ? getAttendeesForEvent(selectedEvent.id) : [];

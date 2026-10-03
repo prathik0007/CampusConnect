@@ -112,28 +112,30 @@ npm start
 | `PUT` | `/api/events/:id` | Protected (`organizer`, `admin`) | Update an existing campus event (owner/admin only) |
 | `DELETE` | `/api/events/:id` | Protected (`organizer`, `admin`) | Cancel an event safely (marks status as `cancelled`) |
 
-#### Sample Event Creation Request (`POST /api/events`):
+#### Registration & Attendee Management Endpoints (Phase 5E)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/events/:id/register` | Protected (`student`) | Register for published event; atomic capacity check, generates ticket code |
+| `DELETE` | `/api/events/:id/register` | Protected (`student`) | Cancel registration; decrements capacity, marks status as `cancelled` |
+| `GET` | `/api/students/my-registrations` | Protected (`student`) | Get authenticated student's tickets with populated event information |
+| `GET` | `/api/events/:id/attendees` | Protected (`organizer`, `admin`) | Get attendee roster for event (event owner or admin only) |
+| `PATCH` | `/api/events/:id/attendees/:studentId` | Protected (`organizer`, `admin`) | Update attendance status (`attended` / `registered`) and record timestamp |
+
+#### Sample Event Registration Request (`POST /api/events/:id/register`):
 ```http
-POST /api/events
-Authorization: Bearer <jwt_token>
+POST /api/events/651f8a7e4b5c9d0012345678/register
+Authorization: Bearer <jwt_student_token>
+```
+
+#### Sample Update Attendance Request (`PATCH /api/events/:id/attendees/:studentId`):
+```http
+PATCH /api/events/651f8a7e4b5c9d0012345678/attendees/651f8a7e4b5c9d0012345679
+Authorization: Bearer <jwt_organizer_token>
 Content-Type: application/json
 
 {
-  "title": "National AI Hackathon 2026",
-  "description": "36-hour competitive AI hackathon for students across universities.",
-  "category": "Technical",
-  "bannerUrl": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
-  "startDate": "2026-11-10T09:00:00.000Z",
-  "endDate": "2026-11-11T21:00:00.000Z",
-  "venue": "Campus Main Auditorium",
-  "maxCapacity": 150,
-  "status": "published"
+  "status": "attended"
 }
-```
-
-#### Sample Query with Filters (`GET /api/events`):
-```http
-GET /api/events?category=Technical&search=hackathon&page=1&limit=10
 ```
 
 ### 6. Optional Database Seeding

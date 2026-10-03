@@ -3,7 +3,7 @@ import { CampusEvent, Registration } from '@/types';
 import { INITIAL_MOCK_EVENTS } from '@/data/mockEvents';
 import { appStorage } from '@/utils/storage';
 import { useAuth } from '@/context/AuthContext';
-import { eventApi } from '@/services/api';
+import { eventApi, registrationApi } from '@/services/api';
 
 interface RegisterStudentParams {
   id: string;
@@ -48,7 +48,9 @@ interface EventContextType {
     attended: boolean
   ) => Promise<{ success: boolean; error?: string }>;
   getAttendeesForEvent: (eventId: string) => Registration[];
+  fetchAttendeesForEvent: (eventId: string) => Promise<Registration[]>;
 }
+
 
 const STORAGE_KEYS = {
   EVENTS: 'campusconnect_events_v2',
@@ -207,6 +209,18 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
           setEvents(res.data.events);
           await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(res.data.events));
         }
+
+        // 3. If authenticated as student, fetch real MongoDB tickets/registrations
+        if (token && user?.role === 'student') {
+          const regRes = await registrationApi.getMyRegistrations(token);
+          if (regRes.success && regRes.data?.registrations) {
+            setRegistrations(regRes.data.registrations);
+            await appStorage.setItem(
+              STORAGE_KEYS.REGISTRATIONS,
+              JSON.stringify(regRes.data.registrations)
+            );
+          }
+        }
       } catch (err) {
         console.warn('[EventContext] Error loading events from backend:', err);
       } finally {
@@ -215,7 +229,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     }
 
     loadStoredData();
-  }, [token]);
+  }, [token, user?.role]);
 
   const refreshEvents = async (): Promise<void> => {
     setIsLoading(true);
@@ -228,6 +242,17 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
         const storedEvents = await appStorage.getItem(STORAGE_KEYS.EVENTS);
         if (storedEvents) {
           setEvents(JSON.parse(storedEvents));
+        }
+      }
+
+      if (token && user?.role === 'student') {
+        const regRes = await registrationApi.getMyRegistrations(token);
+        if (regRes.success && regRes.data?.registrations) {
+          setRegistrations(regRes.data.registrations);
+          await appStorage.setItem(
+            STORAGE_KEYS.REGISTRATIONS,
+            JSON.stringify(regRes.data.registrations)
+          );
         }
       }
     } catch (err) {
@@ -272,109 +297,174 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     eventId: string,
     student: RegisterStudentParams
   ): Promise<{ success: boolean; error?: string; ticketCode?: string }> => {
-    const targetEvent = events.find((e) => e.id === eventId);
-    if (!targetEvent) {
-      return { success: false, error: 'Event not found.' };
-    }
+    try {
+      if (token && eventId.length === 24) {
+        const res = await registrationApi.registerForEvent(eventId, token);
+        if (res.success && res.data) {
+          const newReg = res.data.registration;
+          const ticketCode = res.data.ticketCode;
 
-    if (targetEvent.status === 'cancelled') {
-      return { success: false, error: 'This event has been cancelled by the organizer.' };
-    }
+          // Update registrations list
+          const updatedRegistrations = [
+            newReg,
+            ...registrations.filter((r) => r.eventId !== eventId),
+          ];
+          setRegistrations(updatedRegistrations);
+          await appStorage.setItem(
+            STORAGE_KEYS.REGISTRATIONS,
+            JSON.stringify(updatedRegistrations)
+          );
 
-    // Capacity verification
-    if (targetEvent.registeredCount >= targetEvent.maxCapacity) {
-      return {
-        success: false,
-        error: 'This event has reached full capacity. No seats available.',
+          // Update event registered count in state
+          const updatedEvents = events.map((e) =>
+            e.id === eventId
+              ? {
+                  ...e,
+                  registeredCount: res.data?.event?.registeredCount ?? e.registeredCount + 1,
+                }
+              : e
+          );
+          setEvents(updatedEvents);
+          await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+
+          return { success: true, ticketCode };
+        } else {
+          return { success: false, error: res.message || 'Registration failed' };
+        }
+      }
+
+      // Offline / fallback verification
+      const targetEvent = events.find((e) => e.id === eventId);
+      if (!targetEvent) {
+        return { success: false, error: 'Event not found.' };
+      }
+
+      if (targetEvent.status === 'cancelled') {
+        return { success: false, error: 'This event has been cancelled by the organizer.' };
+      }
+
+      if (targetEvent.registeredCount >= targetEvent.maxCapacity) {
+        return {
+          success: false,
+          error: 'This event has reached full capacity. No seats available.',
+        };
+      }
+
+      const alreadyRegistered = registrations.some(
+        (r) =>
+          r.eventId === eventId &&
+          r.studentId === student.id &&
+          (r.status === 'registered' || r.status === 'attended')
+      );
+      if (alreadyRegistered) {
+        return {
+          success: false,
+          error: 'You are already registered for this event. Check My Tickets.',
+        };
+      }
+
+      const ticketCode = `CC-MOCK-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const newRegistration: Registration = {
+        id: `reg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        eventId,
+        studentId: student.id,
+        studentName: student.name,
+        studentEmail: student.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@campus.edu`,
+        studentRollNumber: student.rollNumber,
+        studentDepartment: student.department,
+        eventTitle: targetEvent.title,
+        eventCategory: targetEvent.category,
+        eventStartDate: targetEvent.startDate,
+        eventVenue: targetEvent.venue,
+        organizerName: targetEvent.organizerName,
+        registrationDate: new Date().toISOString(),
+        status: 'registered',
+        ticketCode,
       };
+
+      const updatedEvents = events.map((e) =>
+        e.id === eventId ? { ...e, registeredCount: e.registeredCount + 1 } : e
+      );
+
+      const updatedRegistrations = [newRegistration, ...registrations];
+
+      setEvents(updatedEvents);
+      setRegistrations(updatedRegistrations);
+
+      await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+      await appStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(updatedRegistrations));
+
+      return { success: true, ticketCode };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Registration failed.' };
     }
-
-    // Duplicate registration verification
-    const alreadyRegistered = registrations.some(
-      (r) =>
-        r.eventId === eventId &&
-        r.studentId === student.id &&
-        (r.status === 'registered' || r.status === 'attended')
-    );
-    if (alreadyRegistered) {
-      return {
-        success: false,
-        error: 'You have already registered for this event. Check My Tickets.',
-      };
-    }
-
-    // Generate unique verifiable ticket code (e.g. CC-TECH-78321)
-    const categoryPrefix = targetEvent.category.substring(0, 4).toUpperCase();
-    const uniqueNumber = Math.floor(10000 + Math.random() * 90000);
-    const ticketCode = `CC-${categoryPrefix}-${uniqueNumber}`;
-
-    const newRegistration: Registration = {
-      id: `reg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      eventId,
-      studentId: student.id,
-      studentName: student.name,
-      studentEmail: student.email || `${student.name.toLowerCase().replace(/\s+/g, '.')}@campus.edu`,
-      studentRollNumber: student.rollNumber,
-      studentDepartment: student.department,
-      eventTitle: targetEvent.title,
-      eventCategory: targetEvent.category,
-      eventStartDate: targetEvent.startDate,
-      eventVenue: targetEvent.venue,
-      organizerName: targetEvent.organizerName,
-      registrationDate: new Date().toISOString(),
-      status: 'registered',
-      ticketCode,
-    };
-
-    // Update event registered count atomically
-    const updatedEvents = events.map((e) =>
-      e.id === eventId ? { ...e, registeredCount: e.registeredCount + 1 } : e
-    );
-
-    const updatedRegistrations = [newRegistration, ...registrations];
-
-    setEvents(updatedEvents);
-    setRegistrations(updatedRegistrations);
-
-    await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
-    await appStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(updatedRegistrations));
-
-    return { success: true, ticketCode };
   };
 
   const cancelRegistration = async (
     eventId: string,
     studentId: string
   ): Promise<{ success: boolean; error?: string }> => {
-    const existingRegistration = registrations.find(
-      (r) =>
-        r.eventId === eventId &&
-        r.studentId === studentId &&
-        (r.status === 'registered' || r.status === 'attended')
-    );
+    try {
+      if (token && eventId.length === 24) {
+        const res = await registrationApi.cancelRegistration(eventId, token);
+        if (res.success) {
+          const updatedRegistrations = registrations.map((r) =>
+            r.eventId === eventId ? { ...r, status: 'cancelled' as const } : r
+          );
+          setRegistrations(updatedRegistrations);
+          await appStorage.setItem(
+            STORAGE_KEYS.REGISTRATIONS,
+            JSON.stringify(updatedRegistrations)
+          );
 
-    if (!existingRegistration) {
-      return { success: false, error: 'Registration record not found.' };
+          const updatedEvents = events.map((e) =>
+            e.id === eventId
+              ? { ...e, registeredCount: Math.max(0, e.registeredCount - 1) }
+              : e
+          );
+          setEvents(updatedEvents);
+          await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+
+          return { success: true };
+        } else {
+          return { success: false, error: res.message || 'Failed to cancel registration' };
+        }
+      }
+
+      const existingRegistration = registrations.find(
+        (r) =>
+          r.eventId === eventId &&
+          r.studentId === studentId &&
+          (r.status === 'registered' || r.status === 'attended')
+      );
+
+      if (!existingRegistration) {
+        return { success: false, error: 'Registration record not found.' };
+      }
+
+      const updatedEvents = events.map((e) =>
+        e.id === eventId ? { ...e, registeredCount: Math.max(0, e.registeredCount - 1) } : e
+      );
+
+      const updatedRegistrations = registrations.map((r) =>
+        r.eventId === eventId && r.studentId === studentId
+          ? { ...r, status: 'cancelled' as const }
+          : r
+      );
+
+      setEvents(updatedEvents);
+      setRegistrations(updatedRegistrations);
+
+      await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+      await appStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(updatedRegistrations));
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to cancel registration.' };
     }
-
-    // Decrement event registered count safely
-    const updatedEvents = events.map((e) =>
-      e.id === eventId ? { ...e, registeredCount: Math.max(0, e.registeredCount - 1) } : e
-    );
-
-    // Remove registration
-    const updatedRegistrations = registrations.filter(
-      (r) => !(r.eventId === eventId && r.studentId === studentId)
-    );
-
-    setEvents(updatedEvents);
-    setRegistrations(updatedRegistrations);
-
-    await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
-    await appStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(updatedRegistrations));
-
-    return { success: true };
   };
+
 
   // -------------------------------------------------------------
   // Organizer Operations
@@ -532,6 +622,20 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     attended: boolean
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      const reg = registrations.find((r) => r.id === registrationId);
+      if (token && reg && reg.eventId?.length === 24 && reg.studentId?.length === 24) {
+        const newStatus = attended ? 'attended' : 'registered';
+        const res = await registrationApi.updateAttendance(
+          reg.eventId,
+          reg.studentId,
+          newStatus,
+          token
+        );
+        if (!res.success) {
+          return { success: false, error: res.message || 'Failed to update attendance on server' };
+        }
+      }
+
       const updatedRegistrations = registrations.map((r) =>
         r.id === registrationId
           ? {
@@ -555,6 +659,25 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     return registrations.filter((r) => r.eventId === eventId);
   };
 
+  const fetchAttendeesForEvent = async (eventId: string): Promise<Registration[]> => {
+    try {
+      if (token && eventId.length === 24) {
+        const res = await registrationApi.getEventAttendees(eventId, token);
+        if (res.success && res.data?.attendees) {
+          const liveAttendees = res.data.attendees;
+          const otherRegs = registrations.filter((r) => r.eventId !== eventId);
+          const merged = [...liveAttendees, ...otherRegs];
+          setRegistrations(merged);
+          await appStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(merged));
+          return liveAttendees;
+        }
+      }
+    } catch (err) {
+      console.warn('[EventContext] Error fetching attendees from server:', err);
+    }
+    return registrations.filter((r) => r.eventId === eventId);
+  };
+
   return (
     <EventContext.Provider
       value={{
@@ -573,12 +696,14 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
         cancelOrDeleteEvent,
         markAttendance,
         getAttendeesForEvent,
+        fetchAttendeesForEvent,
       }}
     >
       {children}
     </EventContext.Provider>
   );
 }
+
 
 export function useEvents() {
   const context = useContext(EventContext);

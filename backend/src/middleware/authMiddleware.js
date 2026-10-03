@@ -88,7 +88,37 @@ const requireRole = (...roles) => {
   };
 };
 
+/**
+ * Optional Authentication Middleware
+ * If Bearer token is provided, validates it and sets req.user.
+ * If no token is provided, proceeds normally with req.user = null.
+ */
+const optionalAuthenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const decoded = verifyToken(token);
+          const user = await User.findById(decoded.id);
+          if (user) {
+            req.user = user;
+          }
+        } catch {
+          // Ignore invalid tokens for optional auth
+        }
+      }
+    }
+    next();
+  } catch {
+    next();
+  }
+};
+
 module.exports = {
   authenticate,
+  optionalAuthenticate,
   requireRole,
 };
+

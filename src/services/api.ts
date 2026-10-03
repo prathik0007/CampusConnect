@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
-import { User, UserRole } from '@/types';
+import { CampusEvent, EventStatus, User, UserRole } from '@/types';
+
 
 /**
  * Configurable API Base URL
@@ -44,6 +45,49 @@ export interface LoginPayload {
   email: string;
   password: string;
 }
+
+export interface EventQueryParams {
+  category?: string;
+  status?: string;
+  search?: string;
+  mine?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface CreateEventPayload {
+  title: string;
+  description: string;
+  category: string;
+  bannerUrl?: string;
+  startDate: string;
+  endDate: string;
+  venue: string;
+  maxCapacity: number;
+  status?: EventStatus;
+}
+
+
+/**
+ * Normalizes backend event document to mobile CampusEvent interface
+ */
+export const normalizeEvent = (e: any): CampusEvent => ({
+  id: e.id || e._id?.toString() || '',
+  title: e.title || '',
+  description: e.description || '',
+  category: e.category,
+  bannerUrl: e.bannerUrl || '',
+  startDate: typeof e.startDate === 'string' ? e.startDate : new Date(e.startDate).toISOString(),
+  endDate: typeof e.endDate === 'string' ? e.endDate : new Date(e.endDate).toISOString(),
+  venue: e.venue || '',
+  maxCapacity: Number(e.maxCapacity) || 0,
+  registeredCount: Number(e.registeredCount) || 0,
+  organizerId: typeof e.organizerId === 'object' ? e.organizerId._id?.toString() : e.organizerId || '',
+  organizerName: e.organizerName || e.organizerDetails?.name || 'Campus Organizer',
+  organizerContact: e.organizerContact || e.organizerDetails?.contact || '',
+  status: e.status || 'published',
+  createdAt: e.createdAt,
+});
 
 /**
  * Handle API responses and extract meaningful user-facing errors
@@ -142,6 +186,202 @@ export const authApi = {
       return {
         success: false,
         message: err.message || 'Network error fetching user profile',
+      };
+    }
+  },
+};
+
+export const eventApi = {
+  /**
+   * Get events with optional filters (category, search, status, mine, pagination)
+   */
+  async getEvents(
+    params?: EventQueryParams,
+    token?: string | null
+  ): Promise<ApiResponse<{ events: CampusEvent[]; pagination: any }>> {
+    try {
+      const query = new URLSearchParams();
+      if (params?.category) query.append('category', params.category);
+      if (params?.status) query.append('status', params.status);
+      if (params?.search) query.append('search', params.search);
+      if (params?.mine) query.append('mine', 'true');
+      if (params?.page) query.append('page', params.page.toString());
+      if (params?.limit) query.append('limit', params.limit.toString());
+
+      const url = `${API_BASE_URL}/events${query.toString() ? `?${query.toString()}` : ''}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await safeFetch(url, {
+        method: 'GET',
+        headers,
+      });
+
+      const res = await handleResponse<{ events: any[]; pagination: any }>(response);
+      if (res.success && res.data?.events) {
+        return {
+          success: true,
+          data: {
+            events: res.data.events.map(normalizeEvent),
+            pagination: res.data.pagination,
+          },
+        };
+      }
+      return res as any;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to fetch events from server',
+      };
+    }
+  },
+
+  /**
+   * Get single event by ID
+   */
+  async getEventById(
+    id: string,
+    token?: string | null
+  ): Promise<ApiResponse<{ event: CampusEvent }>> {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await safeFetch(`${API_BASE_URL}/events/${id}`, {
+        method: 'GET',
+        headers,
+      });
+
+      const res = await handleResponse<{ event: any }>(response);
+      if (res.success && res.data?.event) {
+        return {
+          success: true,
+          data: {
+            event: normalizeEvent(res.data.event),
+          },
+        };
+      }
+      return res as any;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to retrieve event details',
+      };
+    }
+  },
+
+  /**
+   * Create new event (Organizer/Admin only)
+   */
+  async createEvent(
+    payload: CreateEventPayload,
+    token: string
+  ): Promise<ApiResponse<{ event: CampusEvent }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const res = await handleResponse<{ event: any }>(response);
+      if (res.success && res.data?.event) {
+        return {
+          success: true,
+          message: res.message,
+          data: {
+            event: normalizeEvent(res.data.event),
+          },
+        };
+      }
+      return res as any;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to create event on server',
+      };
+    }
+  },
+
+  /**
+   * Update existing event (Organizer/Admin only)
+   */
+  async updateEvent(
+    id: string,
+    payload: Partial<CreateEventPayload>,
+    token: string
+  ): Promise<ApiResponse<{ event: CampusEvent }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const res = await handleResponse<{ event: any }>(response);
+      if (res.success && res.data?.event) {
+        return {
+          success: true,
+          message: res.message,
+          data: {
+            event: normalizeEvent(res.data.event),
+          },
+        };
+      }
+      return res as any;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to update event on server',
+      };
+    }
+  },
+
+  /**
+   * Cancel event (Organizer/Admin only)
+   */
+  async cancelEvent(
+    id: string,
+    token: string
+  ): Promise<ApiResponse<{ event: CampusEvent }>> {
+    try {
+      const response = await safeFetch(`${API_BASE_URL}/events/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const res = await handleResponse<{ event: any }>(response);
+      if (res.success && res.data?.event) {
+        return {
+          success: true,
+          message: res.message,
+          data: {
+            event: normalizeEvent(res.data.event),
+          },
+        };
+      }
+      return res as any;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to cancel event on server',
       };
     }
   },

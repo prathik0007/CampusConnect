@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { CampusEvent, Registration } from '@/types';
 import { INITIAL_MOCK_EVENTS } from '@/data/mockEvents';
 import { appStorage } from '@/utils/storage';
+import { useAuth } from '@/context/AuthContext';
+import { eventApi } from '@/services/api';
 
 interface RegisterStudentParams {
   id: string;
@@ -165,14 +167,16 @@ const INITIAL_MOCK_REGISTRATIONS: Registration[] = [
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
 export function EventProvider({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAuth();
   const [events, setEvents] = useState<CampusEvent[]>(INITIAL_MOCK_EVENTS);
   const [registrations, setRegistrations] = useState<Registration[]>(INITIAL_MOCK_REGISTRATIONS);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize and restore state from local storage
+  // Initialize and restore state from local storage and backend API
   useEffect(() => {
     async function loadStoredData() {
       try {
+        // 1. Initial cached render from local storage for fast response
         const storedEvents = await appStorage.getItem(STORAGE_KEYS.EVENTS);
         const storedRegistrations = await appStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
 
@@ -196,24 +200,38 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
             JSON.stringify(INITIAL_MOCK_REGISTRATIONS)
           );
         }
+
+        // 2. Fetch live events from real MongoDB backend
+        const res = await eventApi.getEvents({ limit: 50 }, token);
+        if (res.success && res.data?.events && res.data.events.length > 0) {
+          setEvents(res.data.events);
+          await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(res.data.events));
+        }
       } catch (err) {
-        console.warn('[EventContext] Error restoring events cache:', err);
+        console.warn('[EventContext] Error loading events from backend:', err);
       } finally {
         setIsLoading(false);
       }
     }
 
     loadStoredData();
-  }, []);
+  }, [token]);
 
   const refreshEvents = async (): Promise<void> => {
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      const storedEvents = await appStorage.getItem(STORAGE_KEYS.EVENTS);
-      if (storedEvents) {
-        setEvents(JSON.parse(storedEvents));
+      const res = await eventApi.getEvents({ limit: 50 }, token);
+      if (res.success && res.data?.events) {
+        setEvents(res.data.events);
+        await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(res.data.events));
+      } else {
+        const storedEvents = await appStorage.getItem(STORAGE_KEYS.EVENTS);
+        if (storedEvents) {
+          setEvents(JSON.parse(storedEvents));
+        }
       }
+    } catch (err) {
+      console.warn('[EventContext] Refresh error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -366,6 +384,34 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     eventData: CreateEventInput
   ): Promise<{ success: boolean; event?: CampusEvent; error?: string }> => {
     try {
+      if (token) {
+        const res = await eventApi.createEvent(
+          {
+            title: eventData.title,
+            description: eventData.description,
+            category: eventData.category,
+            bannerUrl: eventData.bannerUrl,
+            startDate: eventData.startDate,
+            endDate: eventData.endDate,
+            venue: eventData.venue,
+            maxCapacity: eventData.maxCapacity,
+            status: eventData.status === 'draft' ? 'draft' : 'published',
+          },
+          token
+        );
+
+        if (res.success && res.data?.event) {
+          const created = res.data.event;
+          const updatedEvents = [created, ...events];
+          setEvents(updatedEvents);
+          await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+          return { success: true, event: created };
+        } else {
+          return { success: false, error: res.message || 'Failed to create event on server.' };
+        }
+      }
+
+      // Offline / fallback creation
       const newEvent: CampusEvent = {
         ...eventData,
         id: `evt_${Date.now()}`,
@@ -388,6 +434,28 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     updatedFields: Partial<CampusEvent>
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      if (token && id.length === 24) {
+        const res = await eventApi.updateEvent(
+          id,
+          {
+            title: updatedFields.title,
+            description: updatedFields.description,
+            category: updatedFields.category,
+            bannerUrl: updatedFields.bannerUrl,
+            startDate: updatedFields.startDate,
+            endDate: updatedFields.endDate,
+            venue: updatedFields.venue,
+            maxCapacity: updatedFields.maxCapacity,
+            status: updatedFields.status,
+          },
+          token
+        );
+
+        if (!res.success) {
+          return { success: false, error: res.message || 'Failed to update event on server.' };
+        }
+      }
+
       const targetIndex = events.findIndex((e) => e.id === id);
       if (targetIndex === -1) {
         return { success: false, error: 'Event not found.' };
@@ -430,33 +498,34 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     id: string
   ): Promise<{ success: boolean; action: 'cancelled' | 'deleted'; error?: string }> => {
     try {
+      if (token && id.length === 24) {
+        const res = await eventApi.cancelEvent(id, token);
+        if (!res.success) {
+          return {
+            success: false,
+            action: 'cancelled',
+            error: res.message || 'Failed to cancel event on server.',
+          };
+        }
+      }
+
       const targetEvent = events.find((e) => e.id === id);
       if (!targetEvent) {
         return { success: false, action: 'cancelled', error: 'Event not found.' };
       }
 
-      // Check if event has registrations
-      const hasRegistrations = targetEvent.registeredCount > 0;
-
-      if (hasRegistrations) {
-        // Safe cancellation: mark as cancelled instead of permanently deleting
-        const updatedEvents = events.map((e) =>
-          e.id === id ? { ...e, status: 'cancelled' as const } : e
-        );
-        setEvents(updatedEvents);
-        await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
-        return { success: true, action: 'cancelled' };
-      } else {
-        // Permanent deletion allowed for events without attendees
-        const updatedEvents = events.filter((e) => e.id !== id);
-        setEvents(updatedEvents);
-        await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
-        return { success: true, action: 'deleted' };
-      }
+      // Safe cancellation: mark as cancelled instead of permanently deleting
+      const updatedEvents = events.map((e) =>
+        e.id === id ? { ...e, status: 'cancelled' as const } : e
+      );
+      setEvents(updatedEvents);
+      await appStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(updatedEvents));
+      return { success: true, action: 'cancelled' };
     } catch (err: any) {
       return { success: false, action: 'cancelled', error: err.message || 'Action failed.' };
     }
   };
+
 
   const markAttendance = async (
     registrationId: string,

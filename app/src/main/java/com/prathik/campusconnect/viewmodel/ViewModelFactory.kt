@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.prathik.campusconnect.data.repository.AuthRepository
 import com.prathik.campusconnect.data.repository.EventRepository
+import com.prathik.campusconnect.data.repository.NotificationRepository
 import com.prathik.campusconnect.data.repository.RegistrationRepository
 import com.prathik.campusconnect.data.repository.UploadRepository
 
@@ -39,6 +40,18 @@ class RegistrationViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(RegistrationViewModel::class.java)) {
             return RegistrationViewModel(registrationRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
+class NotificationViewModelFactory(
+    private val notificationRepository: NotificationRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(NotificationViewModel::class.java)) {
+            return NotificationViewModel(notificationRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

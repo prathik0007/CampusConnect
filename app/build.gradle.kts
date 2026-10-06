@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.firebase.messaging.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

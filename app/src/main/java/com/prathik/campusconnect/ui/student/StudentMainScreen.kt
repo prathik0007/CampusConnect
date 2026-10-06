@@ -14,8 +14,10 @@ import com.prathik.campusconnect.navigation.Screen
 import com.prathik.campusconnect.navigation.studentBottomNavItems
 import com.prathik.campusconnect.ui.components.CampusTopBar
 import com.prathik.campusconnect.ui.components.StudentBottomNavBar
+import com.prathik.campusconnect.ui.notifications.NotificationScreen
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.NotificationViewModel
 import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
@@ -24,13 +26,29 @@ fun StudentMainScreen(
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
     registrationViewModel: RegistrationViewModel,
+    notificationViewModel: NotificationViewModel,
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.StudentHome) }
     var selectedDetailEventId by remember { mutableStateOf<String?>(null) }
-    val uiState by eventViewModel.uiState.collectAsState()
+    var isNotificationCenterOpen by remember { mutableStateOf(false) }
 
-    if (selectedDetailEventId != null) {
+    val uiState by eventViewModel.uiState.collectAsState()
+    val notifUiState by notificationViewModel.uiState.collectAsState()
+
+    if (isNotificationCenterOpen) {
+        NotificationScreen(
+            notificationViewModel = notificationViewModel,
+            onBackClick = { isNotificationCenterOpen = false },
+            onNavigateToEvent = { eventId ->
+                isNotificationCenterOpen = false
+                if (eventId != null) {
+                    selectedDetailEventId = eventId
+                }
+            },
+            modifier = modifier
+        )
+    } else if (selectedDetailEventId != null) {
         EventDetailsScreen(
             eventId = selectedDetailEventId!!,
             eventViewModel = eventViewModel,
@@ -44,7 +62,9 @@ fun StudentMainScreen(
             topBar = {
                 CampusTopBar(
                     title = "CampusConnect",
-                    roleTitle = "Student • ${currentScreen.title}"
+                    roleTitle = "Student • ${currentScreen.title}",
+                    unreadNotificationCount = notifUiState.unreadCount,
+                    onNotificationBellClick = { isNotificationCenterOpen = true }
                 )
             },
             bottomBar = {

@@ -15,8 +15,10 @@ import com.prathik.campusconnect.navigation.Screen
 import com.prathik.campusconnect.navigation.organizerBottomNavItems
 import com.prathik.campusconnect.ui.components.CampusTopBar
 import com.prathik.campusconnect.ui.components.OrganizerBottomNavBar
+import com.prathik.campusconnect.ui.notifications.NotificationScreen
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.NotificationViewModel
 import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
@@ -25,13 +27,26 @@ fun OrganizerMainScreen(
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
     registrationViewModel: RegistrationViewModel,
+    notificationViewModel: NotificationViewModel,
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.OrganizerDashboard) }
     var editingEvent by remember { mutableStateOf<Event?>(null) }
-    val uiState by eventViewModel.uiState.collectAsState()
+    var isNotificationCenterOpen by remember { mutableStateOf(false) }
 
-    if (editingEvent != null) {
+    val uiState by eventViewModel.uiState.collectAsState()
+    val notifUiState by notificationViewModel.uiState.collectAsState()
+
+    if (isNotificationCenterOpen) {
+        NotificationScreen(
+            notificationViewModel = notificationViewModel,
+            onBackClick = { isNotificationCenterOpen = false },
+            onNavigateToEvent = {
+                isNotificationCenterOpen = false
+            },
+            modifier = modifier
+        )
+    } else if (editingEvent != null) {
         EditEventScreen(
             event = editingEvent!!,
             eventViewModel = eventViewModel,
@@ -44,7 +59,9 @@ fun OrganizerMainScreen(
             topBar = {
                 CampusTopBar(
                     title = "CampusConnect",
-                    roleTitle = "Organizer • ${currentScreen.title}"
+                    roleTitle = "Organizer • ${currentScreen.title}",
+                    unreadNotificationCount = notifUiState.unreadCount,
+                    onNotificationBellClick = { isNotificationCenterOpen = true }
                 )
             },
             bottomBar = {

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,6 +52,8 @@ import com.prathik.campusconnect.navigation.Screen
 fun CampusTopBar(
     title: String,
     roleTitle: String? = null,
+    unreadNotificationCount: Int = 0,
+    onNotificationBellClick: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {}
 ) {
     TopAppBar(
@@ -70,7 +73,28 @@ fun CampusTopBar(
                 }
             }
         },
-        actions = { actions() },
+        actions = {
+            if (onNotificationBellClick != null) {
+                androidx.compose.material3.BadgedBox(
+                    badge = {
+                        if (unreadNotificationCount > 0) {
+                            androidx.compose.material3.Badge {
+                                Text("$unreadNotificationCount")
+                            }
+                        }
+                    }
+                ) {
+                    androidx.compose.material3.IconButton(onClick = onNotificationBellClick) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+            actions()
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primary
         )

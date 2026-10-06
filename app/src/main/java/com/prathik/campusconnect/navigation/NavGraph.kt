@@ -33,6 +33,7 @@ import com.prathik.campusconnect.ui.student.StudentMainScreen
 import com.prathik.campusconnect.viewmodel.AuthState
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.NotificationViewModel
 import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
@@ -40,6 +41,7 @@ fun CampusConnectNavGraph(
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
     registrationViewModel: RegistrationViewModel,
+    notificationViewModel: NotificationViewModel,
     modifier: Modifier = Modifier
 ) {
     val authState by authViewModel.authState.collectAsState()
@@ -108,6 +110,7 @@ fun CampusConnectNavGraph(
                         authViewModel = authViewModel,
                         eventViewModel = eventViewModel,
                         registrationViewModel = registrationViewModel,
+                        notificationViewModel = notificationViewModel,
                         modifier = modifier
                     )
                 }
@@ -117,6 +120,7 @@ fun CampusConnectNavGraph(
                         authViewModel = authViewModel,
                         eventViewModel = eventViewModel,
                         registrationViewModel = registrationViewModel,
+                        notificationViewModel = notificationViewModel,
                         modifier = modifier
                     )
                 }

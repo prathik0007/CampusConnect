@@ -1,5 +1,9 @@
 package com.prathik.campusconnect.ui.student
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Group
@@ -52,10 +58,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.prathik.campusconnect.model.EventStatus
 import com.prathik.campusconnect.ui.components.EmptyStateView
+import com.prathik.campusconnect.viewmodel.CalendarViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
 import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
@@ -65,17 +74,36 @@ fun EventDetailsScreen(
     eventId: String,
     eventViewModel: EventViewModel,
     registrationViewModel: RegistrationViewModel,
+    calendarViewModel: CalendarViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     val eventUiState by eventViewModel.uiState.collectAsState()
     val regUiState by registrationViewModel.uiState.collectAsState()
+    val calUiState by calendarViewModel.uiState.collectAsState()
 
     var showCancelDialog by remember { mutableStateOf(false) }
+
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val readGranted = permissions[Manifest.permission.READ_CALENDAR] == true
+        val writeGranted = permissions[Manifest.permission.WRITE_CALENDAR] == true
+        if (readGranted && writeGranted) {
+            eventUiState.selectedEvent?.let { evt ->
+                calendarViewModel.addEventToCalendar(context, evt)
+            }
+        }
+    }
 
     LaunchedEffect(eventId) {
         eventViewModel.getEventById(eventId)
         registrationViewModel.loadMyRegistrations()
+        eventUiState.selectedEvent?.let { evt ->
+            calendarViewModel.checkIfEventAdded(context, evt.id, evt.title)
+        }
     }
 
     if (showCancelDialog) {
@@ -309,6 +337,55 @@ fun EventDetailsScreen(
                                     }
                                 }
                             }
+                        }
+
+                        // Calendar Integration Button
+                        val isAddedToCalendar = calUiState.addedEventIds.contains(event.id)
+                        OutlinedButton(
+                            onClick = {
+                                val readCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR)
+                                val writeCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR)
+                                if (readCheck == PackageManager.PERMISSION_GRANTED && writeCheck == PackageManager.PERMISSION_GRANTED) {
+                                    calendarViewModel.addEventToCalendar(context, event)
+                                } else {
+                                    calendarPermissionLauncher.launch(
+                                        arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+                                    )
+                                }
+                            },
+                            enabled = !isAddedToCalendar && !calUiState.isAddingToCalendar,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (calUiState.isAddingToCalendar) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            } else if (isAddedToCalendar) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Added to Calendar")
+                            } else {
+                                Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Add to Device Calendar")
+                            }
+                        }
+
+                        if (calUiState.calendarActionMessage != null) {
+                            Text(
+                                text = calUiState.calendarActionMessage!!,
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        if (calUiState.calendarActionError != null) {
+                            Text(
+                                text = calUiState.calendarActionError!!,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
 
                         if (regUiState.actionError != null) {

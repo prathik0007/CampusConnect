@@ -11,11 +11,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.prathik.campusconnect.data.local.AuthDataStore
 import com.prathik.campusconnect.data.remote.RetrofitClient
 import com.prathik.campusconnect.data.repository.AuthRepository
+import com.prathik.campusconnect.data.repository.EventRepository
 import com.prathik.campusconnect.navigation.CampusConnectNavGraph
 import com.prathik.campusconnect.ui.theme.CampusconnectTheme
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.AuthViewModelFactory
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.EventViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,11 +29,15 @@ class MainActivity : ComponentActivity() {
         val authRepository = AuthRepository(authApiService, authDataStore)
         val authViewModelFactory = AuthViewModelFactory(authRepository)
 
+        val eventApiService = RetrofitClient.createEventApiService(authDataStore)
+        val eventRepository = EventRepository(eventApiService)
+        val eventViewModelFactory = EventViewModelFactory(eventRepository)
+
         setContent {
             CampusconnectTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
-                    val eventViewModel: EventViewModel = viewModel()
+                    val eventViewModel: EventViewModel = viewModel(factory = eventViewModelFactory)
 
                     CampusConnectNavGraph(
                         authViewModel = authViewModel,

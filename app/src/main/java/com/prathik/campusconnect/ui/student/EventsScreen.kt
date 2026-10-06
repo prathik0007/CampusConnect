@@ -37,6 +37,7 @@ fun StudentEventsScreen(
     onSearchQueryChange: (String) -> Unit,
     onCategorySelect: (String) -> Unit,
     onRegisterEvent: (String) -> Unit,
+    onEventClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val filteredEvents = uiState.events.filter { event ->
@@ -117,7 +118,8 @@ fun StudentEventsScreen(
                     EventCard(
                         event = event,
                         isRegistered = isRegistered,
-                        onRegisterClick = { onRegisterEvent(event.id) }
+                        onRegisterClick = { onRegisterEvent(event.id) },
+                        onClick = { onEventClick(event.id) }
                     )
                 }
             }

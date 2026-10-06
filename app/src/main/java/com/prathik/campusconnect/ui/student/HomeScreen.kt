@@ -37,6 +37,7 @@ fun StudentHomeScreen(
     onNavigateToEvents: () -> Unit,
     onNavigateToTickets: () -> Unit,
     onRegisterEvent: (String) -> Unit,
+    onEventClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -132,7 +133,8 @@ fun StudentHomeScreen(
             EventCard(
                 event = event,
                 isRegistered = isRegistered,
-                onRegisterClick = { onRegisterEvent(event.id) }
+                onRegisterClick = { onRegisterEvent(event.id) },
+                onClick = { onEventClick(event.id) }
             )
         }
 

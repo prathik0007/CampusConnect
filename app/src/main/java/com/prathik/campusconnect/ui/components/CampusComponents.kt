@@ -154,9 +154,12 @@ fun EventCard(
     event: Event,
     isRegistered: Boolean = false,
     onRegisterClick: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
+        onClick = { onClick?.invoke() },
+        enabled = onClick != null,
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),

@@ -25,65 +25,78 @@ fun StudentMainScreen(
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.StudentHome) }
+    var selectedDetailEventId by remember { mutableStateOf<String?>(null) }
     val uiState by eventViewModel.uiState.collectAsState()
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            CampusTopBar(
-                title = "CampusConnect",
-                roleTitle = "Student • ${currentScreen.title}"
-            )
-        },
-        bottomBar = {
-            StudentBottomNavBar(
-                currentRoute = currentScreen.route,
-                items = studentBottomNavItems,
-                onItemClick = { screen -> currentScreen = screen }
-            )
-        }
-    ) { innerPadding ->
-        val screenModifier = Modifier.padding(innerPadding)
-        when (currentScreen) {
-            Screen.StudentHome -> StudentHomeScreen(
-                user = user,
-                uiState = uiState,
-                onNavigateToEvents = { currentScreen = Screen.StudentEvents },
-                onNavigateToTickets = { currentScreen = Screen.StudentTickets },
-                onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
-                modifier = screenModifier
-            )
-            Screen.StudentEvents -> StudentEventsScreen(
-                user = user,
-                uiState = uiState,
-                onSearchQueryChange = { query -> eventViewModel.updateSearchQuery(query) },
-                onCategorySelect = { cat -> eventViewModel.selectCategory(cat) },
-                onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
-                modifier = screenModifier
-            )
-            Screen.StudentCalendar -> StudentCalendarScreen(
-                uiState = uiState,
-                modifier = screenModifier
-            )
-            Screen.StudentTickets -> StudentTicketsScreen(
-                user = user,
-                uiState = uiState,
-                onExploreEventsClick = { currentScreen = Screen.StudentEvents },
-                modifier = screenModifier
-            )
-            Screen.StudentProfile -> StudentProfileScreen(
-                user = user,
-                onLogoutClick = { authViewModel.logout() },
-                modifier = screenModifier
-            )
-            else -> StudentHomeScreen(
-                user = user,
-                uiState = uiState,
-                onNavigateToEvents = { currentScreen = Screen.StudentEvents },
-                onNavigateToTickets = { currentScreen = Screen.StudentTickets },
-                onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
-                modifier = screenModifier
-            )
+    if (selectedDetailEventId != null) {
+        EventDetailsScreen(
+            eventId = selectedDetailEventId!!,
+            eventViewModel = eventViewModel,
+            onBackClick = { selectedDetailEventId = null },
+            modifier = modifier
+        )
+    } else {
+        Scaffold(
+            modifier = modifier,
+            topBar = {
+                CampusTopBar(
+                    title = "CampusConnect",
+                    roleTitle = "Student • ${currentScreen.title}"
+                )
+            },
+            bottomBar = {
+                StudentBottomNavBar(
+                    currentRoute = currentScreen.route,
+                    items = studentBottomNavItems,
+                    onItemClick = { screen -> currentScreen = screen }
+                )
+            }
+        ) { innerPadding ->
+            val screenModifier = Modifier.padding(innerPadding)
+            when (currentScreen) {
+                Screen.StudentHome -> StudentHomeScreen(
+                    user = user,
+                    uiState = uiState,
+                    onNavigateToEvents = { currentScreen = Screen.StudentEvents },
+                    onNavigateToTickets = { currentScreen = Screen.StudentTickets },
+                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onEventClick = { eventId -> selectedDetailEventId = eventId },
+                    modifier = screenModifier
+                )
+                Screen.StudentEvents -> StudentEventsScreen(
+                    user = user,
+                    uiState = uiState,
+                    onSearchQueryChange = { query -> eventViewModel.updateSearchQuery(query) },
+                    onCategorySelect = { cat -> eventViewModel.selectCategory(cat) },
+                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onEventClick = { eventId -> selectedDetailEventId = eventId },
+                    modifier = screenModifier
+                )
+                Screen.StudentCalendar -> StudentCalendarScreen(
+                    uiState = uiState,
+                    modifier = screenModifier
+                )
+                Screen.StudentTickets -> StudentTicketsScreen(
+                    user = user,
+                    uiState = uiState,
+                    onExploreEventsClick = { currentScreen = Screen.StudentEvents },
+                    modifier = screenModifier
+                )
+                Screen.StudentProfile -> StudentProfileScreen(
+                    user = user,
+                    onLogoutClick = { authViewModel.logout() },
+                    modifier = screenModifier
+                )
+                else -> StudentHomeScreen(
+                    user = user,
+                    uiState = uiState,
+                    onNavigateToEvents = { currentScreen = Screen.StudentEvents },
+                    onNavigateToTickets = { currentScreen = Screen.StudentTickets },
+                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onEventClick = { eventId -> selectedDetailEventId = eventId },
+                    modifier = screenModifier
+                )
+            }
         }
     }
 }

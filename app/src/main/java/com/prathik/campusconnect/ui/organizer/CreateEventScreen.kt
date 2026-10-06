@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -41,7 +42,7 @@ import com.prathik.campusconnect.viewmodel.EventUiState
 fun CreateEventScreen(
     user: User,
     uiState: EventUiState,
-    onCreateEvent: (title: String, description: String, category: String, location: String, startDate: String, endDate: String, capacity: Int, organizerId: String) -> Unit,
+    onCreateEvent: (title: String, description: String, category: String, location: String, startDate: String, endDate: String, capacity: Int) -> Unit,
     onEventCreatedSuccessfully: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -54,8 +55,8 @@ fun CreateEventScreen(
     var endDate by remember { mutableStateOf("Nov 25, 2025 - 04:00 PM") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uiState.creationSuccess) {
-        if (uiState.creationSuccess) {
+    LaunchedEffect(uiState.actionSuccessMessage) {
+        if (uiState.actionSuccessMessage != null) {
             onEventCreatedSuccessfully()
         }
     }
@@ -173,9 +174,10 @@ fun CreateEventScreen(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                if (errorMessage != null) {
+                val displayError = errorMessage ?: uiState.actionErrorMessage
+                if (displayError != null) {
                     Text(
-                        text = errorMessage!!,
+                        text = displayError,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -190,18 +192,23 @@ fun CreateEventScreen(
                             errorMessage = "Please fill in all required fields."
                         } else {
                             errorMessage = null
-                            onCreateEvent(title, description, category, location, startDate, endDate, cap, user.id)
+                            onCreateEvent(title, description, category, location, startDate, endDate, cap)
                         }
                     },
+                    enabled = !uiState.isCreating,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(
-                        text = "Publish Event",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    if (uiState.isCreating) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text(
+                            text = "Publish Event",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
             }
         }

@@ -1,42 +1,136 @@
 package com.prathik.campusconnect.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.prathik.campusconnect.data.DummyData
+import androidx.lifecycle.viewModelScope
+import com.prathik.campusconnect.data.repository.AuthRepository
 import com.prathik.campusconnect.model.User
 import com.prathik.campusconnect.model.UserRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 sealed interface AuthState {
+    object Initial : AuthState
+    object Loading : AuthState
     object Unauthenticated : AuthState
     data class Authenticated(val user: User) : AuthState
+    data class Error(val message: String) : AuthState
 }
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(
+    private val authRepository: AuthRepository? = null
+) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    fun loginWithStudentDemo() {
-        _authState.value = AuthState.Authenticated(DummyData.demoStudent)
+    init {
+        restoreSession()
     }
 
-    fun loginWithOrganizerDemo() {
-        _authState.value = AuthState.Authenticated(DummyData.demoOrganizer)
-    }
-
-    fun loginWithCredentials(email: String, password: String) {
-        val trimmedEmail = email.trim().lowercase()
-        val user = if (trimmedEmail == DummyData.demoOrganizer.email || trimmedEmail.contains("organizer")) {
-            DummyData.demoOrganizer.copy(email = if (trimmedEmail.isNotBlank()) trimmedEmail else DummyData.demoOrganizer.email)
-        } else {
-            DummyData.demoStudent.copy(email = if (trimmedEmail.isNotBlank()) trimmedEmail else DummyData.demoStudent.email)
+    fun restoreSession() {
+        if (authRepository == null) {
+            _authState.value = AuthState.Unauthenticated
+            return
         }
-        _authState.value = AuthState.Authenticated(user)
+
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            val token = authRepository.getStoredToken()
+            if (token.isNullOrBlank()) {
+                _authState.value = AuthState.Unauthenticated
+            } else {
+                val result = authRepository.getCurrentUser()
+                result.fold(
+                    onSuccess = { user ->
+                        _authState.value = AuthState.Authenticated(user)
+                    },
+                    onFailure = {
+                        authRepository.logout()
+                        _authState.value = AuthState.Unauthenticated
+                    }
+                )
+            }
+        }
+    }
+
+    fun login(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Please fill in email and password.")
+            return
+        }
+
+        if (authRepository == null) {
+            _authState.value = AuthState.Error("Auth Repository not initialized.")
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            val result = authRepository.login(email.trim(), password)
+            result.fold(
+                onSuccess = { user ->
+                    _authState.value = AuthState.Authenticated(user)
+                },
+                onFailure = { exception ->
+                    _authState.value = AuthState.Error(exception.message ?: "Login failed.")
+                }
+            )
+        }
+    }
+
+    fun register(name: String, email: String, password: String, confirmPassword: String, role: UserRole) {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("Please fill in all required fields.")
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+            _authState.value = AuthState.Error("Please enter a valid email address.")
+            return
+        }
+
+        if (password.length < 6) {
+            _authState.value = AuthState.Error("Password must be at least 6 characters long.")
+            return
+        }
+
+        if (password != confirmPassword) {
+            _authState.value = AuthState.Error("Passwords do not match.")
+            return
+        }
+
+        if (authRepository == null) {
+            _authState.value = AuthState.Error("Auth Repository not initialized.")
+            return
+        }
+
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            val result = authRepository.register(name.trim(), email.trim(), password, role)
+            result.fold(
+                onSuccess = { user ->
+                    _authState.value = AuthState.Authenticated(user)
+                },
+                onFailure = { exception ->
+                    _authState.value = AuthState.Error(exception.message ?: "Registration failed.")
+                }
+            )
+        }
+    }
+
+    fun clearError() {
+        if (_authState.value is AuthState.Error) {
+            _authState.value = AuthState.Unauthenticated
+        }
     }
 
     fun logout() {
-        _authState.value = AuthState.Unauthenticated
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository?.logout()
+            _authState.value = AuthState.Unauthenticated
+        }
     }
 }

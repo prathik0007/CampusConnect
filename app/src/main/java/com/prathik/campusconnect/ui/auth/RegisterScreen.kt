@@ -11,19 +11,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,18 +49,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.prathik.campusconnect.model.UserRole
 import com.prathik.campusconnect.viewmodel.AuthState
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(
+fun RegisterScreen(
     authViewModel: AuthViewModel,
-    onNavigateToRegister: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf(UserRole.STUDENT) }
     var validationError by remember { mutableStateOf<String?>(null) }
 
     val authState by authViewModel.authState.collectAsState()
@@ -82,7 +91,7 @@ fun LoginScreen(
                 // Header Logo and App Title
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(72.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
@@ -91,11 +100,11 @@ fun LoginScreen(
                         imageVector = Icons.Default.School,
                         contentDescription = "CampusConnect Logo",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(40.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = "CampusConnect",
@@ -105,15 +114,14 @@ fun LoginScreen(
                 )
 
                 Text(
-                    text = "Campus Event Management Platform",
+                    text = "Create your account to get started",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // Login Form Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -126,7 +134,7 @@ fun LoginScreen(
                             .padding(24.dp)
                     ) {
                         Text(
-                            text = "Sign In",
+                            text = "Register",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -134,6 +142,27 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Full Name
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it; validationError = null },
+                            label = { Text("Full Name") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Email
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it; validationError = null },
@@ -153,6 +182,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        // Password
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it; validationError = null },
@@ -171,6 +201,70 @@ fun LoginScreen(
                             shape = RoundedCornerShape(12.dp)
                         )
 
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Confirm Password
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it; validationError = null },
+                            label = { Text("Confirm Password") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            enabled = !isLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Account Role",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            FilterChip(
+                                selected = selectedRole == UserRole.STUDENT,
+                                onClick = { selectedRole = UserRole.STUDENT },
+                                label = { Text("Student") },
+                                leadingIcon = { Icon(Icons.Default.School, contentDescription = null) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            )
+
+                            FilterChip(
+                                selected = selectedRole == UserRole.ORGANIZER,
+                                onClick = { selectedRole = UserRole.ORGANIZER },
+                                label = { Text("Organizer") },
+                                leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            )
+                        }
+
+                        // Display validation/server errors
                         val displayError = validationError ?: (authState as? AuthState.Error)?.message
                         if (displayError != null) {
                             Spacer(modifier = Modifier.height(12.dp))
@@ -191,11 +285,23 @@ fun LoginScreen(
 
                         Button(
                             onClick = {
-                                if (email.isBlank() || password.isBlank()) {
-                                    validationError = "Please enter both email and password."
+                                if (name.isBlank() || email.isBlank() || password.isBlank()) {
+                                    validationError = "All fields are required."
+                                } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+                                    validationError = "Please enter a valid email address."
+                                } else if (password.length < 6) {
+                                    validationError = "Password must be at least 6 characters."
+                                } else if (password != confirmPassword) {
+                                    validationError = "Passwords do not match."
                                 } else {
                                     validationError = null
-                                    authViewModel.login(email, password)
+                                    authViewModel.register(
+                                        name = name,
+                                        email = email,
+                                        password = password,
+                                        confirmPassword = confirmPassword,
+                                        role = selectedRole
+                                    )
                                 }
                             },
                             enabled = !isLoading,
@@ -212,7 +318,7 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
-                                    text = "Sign In",
+                                    text = "Create Account",
                                     style = MaterialTheme.typography.titleMedium
                                 )
                             }
@@ -226,16 +332,16 @@ fun LoginScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Don't have an account?",
+                                text = "Already have an account?",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             TextButton(onClick = {
                                 authViewModel.clearError()
-                                onNavigateToRegister()
+                                onNavigateToLogin()
                             }) {
                                 Text(
-                                    text = "Sign Up",
+                                    text = "Sign In",
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -249,8 +355,8 @@ fun LoginScreen(
 
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true)
 @Composable
-fun LoginScreenPreview() {
+fun RegisterScreenPreview() {
     com.prathik.campusconnect.ui.theme.CampusconnectTheme {
-        LoginScreen(authViewModel = AuthViewModel(), onNavigateToRegister = {})
+        RegisterScreen(authViewModel = AuthViewModel(), onNavigateToLogin = {})
     }
 }

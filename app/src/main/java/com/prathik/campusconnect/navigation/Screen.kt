@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     // Auth
     object Login : Screen("login", "Login")
+    object Register : Screen("register", "Register")
 
     // Student Screens
     object StudentHome : Screen("student_home", "Home", Icons.Default.Home)

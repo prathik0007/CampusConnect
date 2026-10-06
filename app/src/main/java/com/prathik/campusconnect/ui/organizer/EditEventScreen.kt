@@ -1,6 +1,10 @@
 package com.prathik.campusconnect.ui.organizer
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,13 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Group
@@ -27,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,9 +48,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.prathik.campusconnect.model.Event
 import com.prathik.campusconnect.viewmodel.EventViewModel
 
@@ -53,6 +67,8 @@ fun EditEventScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     var title by remember { mutableStateOf(event.title) }
     var description by remember { mutableStateOf(event.description) }
     var category by remember { mutableStateOf(event.category) }
@@ -60,9 +76,17 @@ fun EditEventScreen(
     var capacityText by remember { mutableStateOf(event.capacity.toString()) }
     var startDate by remember { mutableStateOf(event.startDate) }
     var endDate by remember { mutableStateOf(event.endDate) }
+    var newImageUri by remember { mutableStateOf<Uri?>(null) }
+    var existingImageUrl by remember { mutableStateOf(event.imageUrl) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val uiState by eventViewModel.uiState.collectAsState()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        newImageUri = uri
+    }
 
     LaunchedEffect(uiState.actionSuccessMessage) {
         if (uiState.actionSuccessMessage != null) {
@@ -114,7 +138,63 @@ fun EditEventScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Image Banner Preview & Selector
+                    val imageToDisplay: Any? = newImageUri ?: existingImageUrl.ifBlank { null }
+                    if (imageToDisplay != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            AsyncImage(
+                                model = imageToDisplay,
+                                contentDescription = "Event Banner Preview",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    newImageUri = null
+                                    existingImageUrl = ""
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove Banner",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Replace Banner Image")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Select Banner Image")
+                        }
+                    }
 
                     OutlinedTextField(
                         value = title,
@@ -210,8 +290,11 @@ fun EditEventScreen(
                                 errorMessage = "Please fill in all required fields."
                             } else {
                                 errorMessage = null
-                                eventViewModel.updateEvent(
+                                eventViewModel.updateEventWithImage(
+                                    context = context,
                                     id = event.id,
+                                    newImageUri = newImageUri,
+                                    existingImageUrl = existingImageUrl,
                                     title = title,
                                     description = description,
                                     category = category,
@@ -222,14 +305,21 @@ fun EditEventScreen(
                                 )
                             }
                         },
-                        enabled = !uiState.isUpdating,
+                        enabled = !uiState.isUpdating && !uiState.isUploading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        if (uiState.isUpdating) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                        if (uiState.isUpdating || uiState.isUploading) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (uiState.isUploading) "Uploading Image..." else "Saving...")
+                            }
                         } else {
                             Text(
                                 text = "Save Changes",

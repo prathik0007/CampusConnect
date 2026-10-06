@@ -51,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.prathik.campusconnect.model.EventStatus
@@ -157,31 +158,42 @@ fun EventDetailsScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(180.dp)
                                 .background(
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                     shape = RoundedCornerShape(16.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Event,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            if (event.imageUrl.isNotBlank()) {
+                                coil.compose.AsyncImage(
+                                    model = event.imageUrl,
+                                    contentDescription = "Event Banner",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(16.dp))
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                ) {
-                                    Text(
-                                        text = event.category,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Event,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Text(
+                                            text = event.category,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.prathik.campusconnect.data.repository.AuthRepository
 import com.prathik.campusconnect.data.repository.EventRepository
 import com.prathik.campusconnect.data.repository.RegistrationRepository
+import com.prathik.campusconnect.data.repository.UploadRepository
 
 class AuthViewModelFactory(
     private val authRepository: AuthRepository
@@ -19,12 +20,13 @@ class AuthViewModelFactory(
 }
 
 class EventViewModelFactory(
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val uploadRepository: UploadRepository? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(EventViewModel::class.java)) {
-            return EventViewModel(eventRepository) as T
+            return EventViewModel(eventRepository, uploadRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

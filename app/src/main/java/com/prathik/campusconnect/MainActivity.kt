@@ -13,6 +13,7 @@ import com.prathik.campusconnect.data.remote.RetrofitClient
 import com.prathik.campusconnect.data.repository.AuthRepository
 import com.prathik.campusconnect.data.repository.EventRepository
 import com.prathik.campusconnect.data.repository.RegistrationRepository
+import com.prathik.campusconnect.data.repository.UploadRepository
 import com.prathik.campusconnect.navigation.CampusConnectNavGraph
 import com.prathik.campusconnect.ui.theme.CampusconnectTheme
 import com.prathik.campusconnect.viewmodel.AuthViewModel
@@ -32,9 +33,12 @@ class MainActivity : ComponentActivity() {
         val authRepository = AuthRepository(authApiService, authDataStore)
         val authViewModelFactory = AuthViewModelFactory(authRepository)
 
+        val uploadApiService = RetrofitClient.createUploadApiService(authDataStore)
+        val uploadRepository = UploadRepository(uploadApiService)
+
         val eventApiService = RetrofitClient.createEventApiService(authDataStore)
         val eventRepository = EventRepository(eventApiService)
-        val eventViewModelFactory = EventViewModelFactory(eventRepository)
+        val eventViewModelFactory = EventViewModelFactory(eventRepository, uploadRepository)
 
         val registrationApiService = RetrofitClient.createRegistrationApiService(authDataStore)
         val registrationRepository = RegistrationRepository(registrationApiService)

@@ -1,9 +1,12 @@
 package com.prathik.campusconnect.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prathik.campusconnect.data.DummyData
 import com.prathik.campusconnect.data.repository.EventRepository
+import com.prathik.campusconnect.data.repository.UploadRepository
 import com.prathik.campusconnect.data.remote.dto.CreateEventRequest
 import com.prathik.campusconnect.data.remote.dto.UpdateEventRequest
 import com.prathik.campusconnect.model.Event
@@ -27,12 +30,14 @@ data class EventUiState(
     val isCreating: Boolean = false,
     val isUpdating: Boolean = false,
     val isDeleting: Boolean = false,
+    val isUploading: Boolean = false,
     val actionSuccessMessage: String? = null,
     val actionErrorMessage: String? = null
 )
 
 class EventViewModel(
-    private val eventRepository: EventRepository? = null
+    private val eventRepository: EventRepository? = null,
+    private val uploadRepository: UploadRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventUiState())
@@ -105,6 +110,58 @@ class EventViewModel(
         _uiState.value = _uiState.value.copy(selectedCategory = category)
     }
 
+    fun createEventWithImage(
+        context: Context,
+        imageUri: Uri?,
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        startDate: String,
+        endDate: String,
+        capacity: Int
+    ) {
+        if (title.isBlank() || description.isBlank() || location.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionErrorMessage = "Title, description, and location are required.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCreating = true, actionErrorMessage = null, actionSuccessMessage = null)
+
+            var uploadedUrl = ""
+            if (imageUri != null && uploadRepository != null) {
+                _uiState.value = _uiState.value.copy(isUploading = true)
+                val uploadResult = uploadRepository.uploadEventBanner(context, imageUri)
+                uploadResult.fold(
+                    onSuccess = { url ->
+                        uploadedUrl = url
+                        _uiState.value = _uiState.value.copy(isUploading = false)
+                    },
+                    onFailure = { exception ->
+                        _uiState.value = _uiState.value.copy(
+                            isCreating = false,
+                            isUploading = false,
+                            actionErrorMessage = "Image upload failed: ${exception.message}"
+                        )
+                        return@launch
+                    }
+                )
+            }
+
+            createEvent(
+                title = title,
+                description = description,
+                category = category,
+                location = location,
+                startDate = startDate,
+                endDate = endDate,
+                capacity = capacity,
+                imageUrl = uploadedUrl
+            )
+        }
+    }
+
     fun createEvent(
         title: String,
         description: String,
@@ -121,7 +178,10 @@ class EventViewModel(
         }
 
         if (eventRepository == null) {
-            _uiState.value = _uiState.value.copy(actionSuccessMessage = "Event created successfully!")
+            _uiState.value = _uiState.value.copy(
+                isCreating = false,
+                actionSuccessMessage = "Event created successfully!"
+            )
             return
         }
 
@@ -154,6 +214,56 @@ class EventViewModel(
                         actionErrorMessage = exception.message ?: "Failed to create event."
                     )
                 }
+            )
+        }
+    }
+
+    fun updateEventWithImage(
+        context: Context,
+        id: String,
+        newImageUri: Uri?,
+        existingImageUrl: String,
+        title: String,
+        description: String,
+        category: String,
+        location: String,
+        startDate: String,
+        endDate: String,
+        capacity: Int
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUpdating = true, actionErrorMessage = null, actionSuccessMessage = null)
+
+            var finalImageUrl = existingImageUrl
+            if (newImageUri != null && uploadRepository != null) {
+                _uiState.value = _uiState.value.copy(isUploading = true)
+                val uploadResult = uploadRepository.uploadEventBanner(context, newImageUri)
+                uploadResult.fold(
+                    onSuccess = { url ->
+                        finalImageUrl = url
+                        _uiState.value = _uiState.value.copy(isUploading = false)
+                    },
+                    onFailure = { exception ->
+                        _uiState.value = _uiState.value.copy(
+                            isUpdating = false,
+                            isUploading = false,
+                            actionErrorMessage = "Image upload failed: ${exception.message}"
+                        )
+                        return@launch
+                    }
+                )
+            }
+
+            updateEvent(
+                id = id,
+                title = title,
+                description = description,
+                category = category,
+                location = location,
+                startDate = startDate,
+                endDate = endDate,
+                capacity = capacity,
+                imageUrl = finalImageUrl
             )
         }
     }

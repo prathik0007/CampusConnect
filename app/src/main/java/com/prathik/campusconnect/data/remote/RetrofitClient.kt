@@ -70,4 +70,24 @@ object RetrofitClient {
             .build()
             .create(RegistrationApiService::class.java)
     }
+
+    fun createUploadApiService(authDataStore: AuthDataStore): UploadApiService {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(authDataStore))
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(UploadApiService::class.java)
+    }
 }

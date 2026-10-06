@@ -76,8 +76,10 @@ fun OrganizerMainScreen(
                 Screen.CreateEvent -> CreateEventScreen(
                     user = user,
                     uiState = uiState,
-                    onCreateEvent = { title, description, category, location, startDate, endDate, capacity ->
-                        eventViewModel.createEvent(
+                    onCreateEventWithImage = { context, imageUri, title, description, category, location, startDate, endDate, capacity ->
+                        eventViewModel.createEventWithImage(
+                            context = context,
+                            imageUri = imageUri,
                             title = title,
                             description = description,
                             category = category,

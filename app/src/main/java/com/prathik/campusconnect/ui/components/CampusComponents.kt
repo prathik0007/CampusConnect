@@ -172,6 +172,19 @@ fun EventCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
+            if (event.imageUrl.isNotBlank()) {
+                coil.compose.AsyncImage(
+                    model = event.imageUrl,
+                    contentDescription = "Event banner for ${event.title}",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

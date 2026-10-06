@@ -19,10 +19,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -37,31 +39,67 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.prathik.campusconnect.model.EventStatus
 import com.prathik.campusconnect.ui.components.EmptyStateView
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDetailsScreen(
     eventId: String,
     eventViewModel: EventViewModel,
+    registrationViewModel: RegistrationViewModel,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by eventViewModel.uiState.collectAsState()
+    val eventUiState by eventViewModel.uiState.collectAsState()
+    val regUiState by registrationViewModel.uiState.collectAsState()
+
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(eventId) {
         eventViewModel.getEventById(eventId)
+        registrationViewModel.loadMyRegistrations()
+    }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancel Registration") },
+            text = { Text("Cancel your registration for this event?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCancelDialog = false
+                        registrationViewModel.cancelRegistration(eventId) {
+                            eventViewModel.getEventById(eventId)
+                        }
+                    }
+                ) {
+                    Text("Cancel Registration", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Keep Registration")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -82,7 +120,8 @@ fun EventDetailsScreen(
             )
         }
     ) { innerPadding ->
-        val event = uiState.selectedEvent
+        val event = eventUiState.selectedEvent
+        val isRegistered = regUiState.myRegistrations.any { it.eventId == eventId }
 
         Box(
             modifier = Modifier
@@ -90,17 +129,17 @@ fun EventDetailsScreen(
                 .padding(innerPadding)
         ) {
             when {
-                uiState.isDetailLoading -> {
+                eventUiState.isDetailLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
 
-                uiState.detailError != null -> {
+                eventUiState.detailError != null -> {
                     EmptyStateView(
                         icon = Icons.Default.Info,
                         title = "Error Loading Event",
-                        description = uiState.detailError ?: "Could not fetch details.",
+                        description = eventUiState.detailError ?: "Could not fetch details.",
                         actionButtonText = "Retry",
                         onActionClick = { eventViewModel.getEventById(eventId) }
                     )
@@ -114,7 +153,7 @@ fun EventDetailsScreen(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Banner Placeholder / Header Card
+                        // Header Banner Card
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -163,7 +202,7 @@ fun EventDetailsScreen(
 
                         Divider()
 
-                        // Meta Information Card
+                        // Meta Card
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -225,7 +264,7 @@ fun EventDetailsScreen(
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
-                                            text = "Capacity & Attendance",
+                                            text = "Capacity & Spots",
                                             style = MaterialTheme.typography.labelLarge,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -260,25 +299,120 @@ fun EventDetailsScreen(
                             }
                         }
 
+                        if (regUiState.actionError != null) {
+                            Text(
+                                text = regUiState.actionError!!,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        if (regUiState.actionMessage != null) {
+                            Text(
+                                text = regUiState.actionMessage!!,
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Registration Action Placeholder (Phase 4 Notice)
-                        Button(
-                            onClick = {},
-                            enabled = false,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            Text(
-                                text = "Register for Event (Phase 4)",
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                        // Real Registration / Cancellation Action Button
+                        when {
+                            regUiState.isRegistering || regUiState.isCancelling -> {
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+
+                            isRegistered -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = {},
+                                        enabled = false,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Registered")
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { showCancelDialog = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("Cancel Registration")
+                                    }
+                                }
+                            }
+
+                            event.registeredCount >= event.capacity -> {
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Event Full")
+                                }
+                            }
+
+                            event.status == EventStatus.CANCELLED -> {
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Registration Unavailable")
+                                }
+                            }
+
+                            else -> {
+                                Button(
+                                    onClick = {
+                                        registrationViewModel.registerForEvent(eventId) {
+                                            eventViewModel.getEventById(eventId)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = "Register for Event",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                            }
                         }
                     }
                 }

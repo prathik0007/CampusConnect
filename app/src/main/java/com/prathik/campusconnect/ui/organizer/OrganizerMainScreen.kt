@@ -17,12 +17,14 @@ import com.prathik.campusconnect.ui.components.CampusTopBar
 import com.prathik.campusconnect.ui.components.OrganizerBottomNavBar
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
 fun OrganizerMainScreen(
     user: User,
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
+    registrationViewModel: RegistrationViewModel,
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.OrganizerDashboard) }
@@ -92,7 +94,8 @@ fun OrganizerMainScreen(
                     modifier = screenModifier
                 )
                 Screen.Attendees -> AttendeesScreen(
-                    uiState = uiState,
+                    eventViewModel = eventViewModel,
+                    registrationViewModel = registrationViewModel,
                     modifier = screenModifier
                 )
                 Screen.OrganizerProfile -> OrganizerProfileScreen(

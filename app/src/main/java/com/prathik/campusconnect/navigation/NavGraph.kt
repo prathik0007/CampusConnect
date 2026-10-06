@@ -33,11 +33,13 @@ import com.prathik.campusconnect.ui.student.StudentMainScreen
 import com.prathik.campusconnect.viewmodel.AuthState
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
 fun CampusConnectNavGraph(
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
+    registrationViewModel: RegistrationViewModel,
     modifier: Modifier = Modifier
 ) {
     val authState by authViewModel.authState.collectAsState()
@@ -45,7 +47,6 @@ fun CampusConnectNavGraph(
 
     when (val state = authState) {
         is AuthState.Initial, is AuthState.Loading -> {
-            // Smooth Loading / Session Restoration Screen
             Box(
                 modifier = modifier
                     .fillMaxSize()
@@ -106,6 +107,7 @@ fun CampusConnectNavGraph(
                         user = state.user,
                         authViewModel = authViewModel,
                         eventViewModel = eventViewModel,
+                        registrationViewModel = registrationViewModel,
                         modifier = modifier
                     )
                 }
@@ -114,6 +116,7 @@ fun CampusConnectNavGraph(
                         user = state.user,
                         authViewModel = authViewModel,
                         eventViewModel = eventViewModel,
+                        registrationViewModel = registrationViewModel,
                         modifier = modifier
                     )
                 }

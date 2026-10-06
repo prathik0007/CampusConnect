@@ -16,12 +16,14 @@ import com.prathik.campusconnect.ui.components.CampusTopBar
 import com.prathik.campusconnect.ui.components.StudentBottomNavBar
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModel
+import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
 @Composable
 fun StudentMainScreen(
     user: User,
     authViewModel: AuthViewModel,
     eventViewModel: EventViewModel,
+    registrationViewModel: RegistrationViewModel,
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.StudentHome) }
@@ -32,6 +34,7 @@ fun StudentMainScreen(
         EventDetailsScreen(
             eventId = selectedDetailEventId!!,
             eventViewModel = eventViewModel,
+            registrationViewModel = registrationViewModel,
             onBackClick = { selectedDetailEventId = null },
             modifier = modifier
         )
@@ -59,7 +62,11 @@ fun StudentMainScreen(
                     uiState = uiState,
                     onNavigateToEvents = { currentScreen = Screen.StudentEvents },
                     onNavigateToTickets = { currentScreen = Screen.StudentTickets },
-                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onRegisterEvent = { eventId ->
+                        registrationViewModel.registerForEvent(eventId) {
+                            eventViewModel.loadEvents()
+                        }
+                    },
                     onEventClick = { eventId -> selectedDetailEventId = eventId },
                     modifier = screenModifier
                 )
@@ -68,7 +75,11 @@ fun StudentMainScreen(
                     uiState = uiState,
                     onSearchQueryChange = { query -> eventViewModel.updateSearchQuery(query) },
                     onCategorySelect = { cat -> eventViewModel.selectCategory(cat) },
-                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onRegisterEvent = { eventId ->
+                        registrationViewModel.registerForEvent(eventId) {
+                            eventViewModel.loadEvents()
+                        }
+                    },
                     onEventClick = { eventId -> selectedDetailEventId = eventId },
                     modifier = screenModifier
                 )
@@ -78,7 +89,8 @@ fun StudentMainScreen(
                 )
                 Screen.StudentTickets -> StudentTicketsScreen(
                     user = user,
-                    uiState = uiState,
+                    eventViewModel = eventViewModel,
+                    registrationViewModel = registrationViewModel,
                     onExploreEventsClick = { currentScreen = Screen.StudentEvents },
                     modifier = screenModifier
                 )
@@ -92,7 +104,11 @@ fun StudentMainScreen(
                     uiState = uiState,
                     onNavigateToEvents = { currentScreen = Screen.StudentEvents },
                     onNavigateToTickets = { currentScreen = Screen.StudentTickets },
-                    onRegisterEvent = { eventId -> eventViewModel.registerForEvent(eventId, user.id) },
+                    onRegisterEvent = { eventId ->
+                        registrationViewModel.registerForEvent(eventId) {
+                            eventViewModel.loadEvents()
+                        }
+                    },
                     onEventClick = { eventId -> selectedDetailEventId = eventId },
                     modifier = screenModifier
                 )

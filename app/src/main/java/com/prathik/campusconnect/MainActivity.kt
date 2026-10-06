@@ -12,12 +12,15 @@ import com.prathik.campusconnect.data.local.AuthDataStore
 import com.prathik.campusconnect.data.remote.RetrofitClient
 import com.prathik.campusconnect.data.repository.AuthRepository
 import com.prathik.campusconnect.data.repository.EventRepository
+import com.prathik.campusconnect.data.repository.RegistrationRepository
 import com.prathik.campusconnect.navigation.CampusConnectNavGraph
 import com.prathik.campusconnect.ui.theme.CampusconnectTheme
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.AuthViewModelFactory
 import com.prathik.campusconnect.viewmodel.EventViewModel
 import com.prathik.campusconnect.viewmodel.EventViewModelFactory
+import com.prathik.campusconnect.viewmodel.RegistrationViewModel
+import com.prathik.campusconnect.viewmodel.RegistrationViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,15 +36,21 @@ class MainActivity : ComponentActivity() {
         val eventRepository = EventRepository(eventApiService)
         val eventViewModelFactory = EventViewModelFactory(eventRepository)
 
+        val registrationApiService = RetrofitClient.createRegistrationApiService(authDataStore)
+        val registrationRepository = RegistrationRepository(registrationApiService)
+        val registrationViewModelFactory = RegistrationViewModelFactory(registrationRepository)
+
         setContent {
             CampusconnectTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
                     val eventViewModel: EventViewModel = viewModel(factory = eventViewModelFactory)
+                    val registrationViewModel: RegistrationViewModel = viewModel(factory = registrationViewModelFactory)
 
                     CampusConnectNavGraph(
                         authViewModel = authViewModel,
-                        eventViewModel = eventViewModel
+                        eventViewModel = eventViewModel,
+                        registrationViewModel = registrationViewModel
                     )
                 }
             }

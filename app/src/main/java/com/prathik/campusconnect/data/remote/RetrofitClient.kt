@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    var BASE_URL: String = "http://172.16.37.205:5000/"
+    var BASE_URL: String = "https://campusconnect-1-38rh.onrender.com/"
 
     fun createAuthApiService(authDataStore: AuthDataStore): AuthApiService {
         val loggingInterceptor = HttpLoggingInterceptor().apply {

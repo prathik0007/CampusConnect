@@ -19,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -153,6 +155,8 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        var passwordVisible by remember { mutableStateOf(false) }
+
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it; validationError = null },
@@ -164,7 +168,15 @@ fun LoginScreen(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             },
-                            visualTransformation = PasswordVisualTransformation(),
+                            trailingIcon = {
+                                androidx.compose.material3.IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
                             enabled = !isLoading,
                             modifier = Modifier.fillMaxWidth(),

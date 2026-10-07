@@ -17,6 +17,7 @@ datastore = "1.1.2"
 kotlinxCoroutinesTest = "1.8.1"
 coil = "2.7.0"
 firebaseMessaging = "24.1.2"
+googleServices = "4.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,4 +50,5 @@ firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messa
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 

@@ -10,9 +10,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.messaging.FirebaseMessaging
 import com.prathik.campusconnect.data.local.AuthDataStore
 import com.prathik.campusconnect.data.remote.RetrofitClient
 import com.prathik.campusconnect.data.repository.AuthRepository
@@ -23,6 +27,7 @@ import com.prathik.campusconnect.data.repository.UploadRepository
 import com.prathik.campusconnect.navigation.CampusConnectNavGraph
 import com.prathik.campusconnect.service.CampusFirebaseMessagingService
 import com.prathik.campusconnect.ui.theme.CampusconnectTheme
+import com.prathik.campusconnect.viewmodel.AuthState
 import com.prathik.campusconnect.viewmodel.AuthViewModel
 import com.prathik.campusconnect.viewmodel.AuthViewModelFactory
 import com.prathik.campusconnect.viewmodel.EventViewModel
@@ -74,9 +79,22 @@ class MainActivity : ComponentActivity() {
                     val registrationViewModel: RegistrationViewModel = viewModel(factory = registrationViewModelFactory)
                     val notificationViewModel: NotificationViewModel = viewModel(factory = notificationViewModelFactory)
 
-                    // Register latest FCM token with backend if available
-                    CampusFirebaseMessagingService.latestFcmToken?.let { token ->
-                        notificationViewModel.registerDeviceToken(token)
+                    val authState by authViewModel.authState.collectAsState()
+
+                    LaunchedEffect(authState) {
+                        if (authState is AuthState.Authenticated) {
+                            try {
+                                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                    if (task.isSuccessful && task.result != null) {
+                                        val token = task.result
+                                        CampusFirebaseMessagingService.latestFcmToken = token
+                                        notificationViewModel.registerDeviceToken(token)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // FCM token retrieval handled safely
+                            }
+                        }
                     }
 
                     CampusConnectNavGraph(

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "830207181880",
+    "project_id": "campusconnect-e800d",
+    "storage_bucket": "campusconnect-e800d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830207181880:android:cf4a96c4760a2e16c712cd",
+        "android_client_info": {
+          "package_name": "com.prathik.campusconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsFK6gsZ3mGOaynom1ZY_J5SeoC3TL0BA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

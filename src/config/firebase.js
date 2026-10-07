@@ -1,18 +1,44 @@
 const admin = require('firebase-admin');
+const { cert, initializeApp } = require('firebase-admin/app');
+const { getMessaging } = require('firebase-admin/messaging');
 
 let firebaseApp = null;
 
 try {
+  const getCertCredential = (configObj) => {
+    if (typeof cert === 'function') {
+      return cert(configObj);
+    }
+    if (typeof admin.cert === 'function') {
+      return admin.cert(configObj);
+    }
+    if (admin.credential && typeof admin.credential.cert === 'function') {
+      return admin.credential.cert(configObj);
+    }
+    throw new Error('Firebase cert function unavailable');
+  };
+
+  const initApp = (options) => {
+    if (typeof initializeApp === 'function') {
+      return initializeApp(options);
+    }
+    return admin.initializeApp(options);
+  };
+
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+    firebaseApp = initApp({
+      credential: getCertCredential(serviceAccount)
     });
     console.log('Firebase Admin SDK initialized using FIREBASE_SERVICE_ACCOUNT');
   } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-    firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert({
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (typeof privateKey === 'string') {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+
+    firebaseApp = initApp({
+      credential: getCertCredential({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey
@@ -49,7 +75,8 @@ const sendFcmNotification = async (fcmToken, title, body, data = {}) => {
       }, {})
     };
 
-    const response = await admin.messaging().send(messagePayload);
+    const messagingService = typeof admin.messaging === 'function' ? admin.messaging() : getMessaging(firebaseApp);
+    const response = await messagingService.send(messagePayload);
     console.log('FCM Notification sent successfully. Message ID:', response);
     return true;
   } catch (error) {

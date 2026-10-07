@@ -90,7 +90,7 @@ data class EventDto(
 
         val finalCapacity = capacity ?: 100
         val finalRegisteredCount = registeredCount ?: registeredStudents?.size ?: 0
-        val finalImage = imageUrl ?: bannerUrl ?: image ?: ""
+        val finalImage = listOfNotNull(imageUrl, bannerUrl, image).firstOrNull { it.isNotBlank() } ?: ""
         val finalOrgId = organizerId ?: organizer?.toString() ?: "org_default"
 
         val parsedStatus = when (status?.uppercase()) {

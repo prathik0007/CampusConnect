@@ -38,7 +38,7 @@ object DummyData {
             endDate = "Oct 26, 2025 - 09:00 AM",
             capacity = 150,
             registeredCount = 112,
-            imageUrl = "",
+            imageUrl = "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80",
             organizerId = "org_201",
             status = EventStatus.UPCOMING
         ),
@@ -52,7 +52,7 @@ object DummyData {
             endDate = "Nov 02, 2025 - 10:00 PM",
             capacity = 500,
             registeredCount = 340,
-            imageUrl = "",
+            imageUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
             organizerId = "org_201",
             status = EventStatus.UPCOMING
         ),
@@ -66,7 +66,7 @@ object DummyData {
             endDate = "Nov 10, 2025 - 05:00 PM",
             capacity = 60,
             registeredCount = 60,
-            imageUrl = "",
+            imageUrl = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
             organizerId = "org_201",
             status = EventStatus.UPCOMING
         ),
@@ -80,7 +80,7 @@ object DummyData {
             endDate = "Nov 20, 2025 - 06:00 PM",
             capacity = 200,
             registeredCount = 85,
-            imageUrl = "",
+            imageUrl = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80",
             organizerId = "org_201",
             status = EventStatus.UPCOMING
         )

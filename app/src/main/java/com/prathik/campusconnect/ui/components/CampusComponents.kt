@@ -181,6 +181,16 @@ fun EventCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val displayBannerUrl = event.imageUrl.ifBlank {
+        when (event.category.lowercase()) {
+            "tech" -> "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80"
+            "cultural" -> "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"
+            "workshops", "workshop" -> "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
+            "sports" -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80"
+            else -> "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=800&q=80"
+        }
+    }
+
     Card(
         onClick = { onClick?.invoke() },
         enabled = onClick != null,
@@ -196,18 +206,17 @@ fun EventCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            if (event.imageUrl.isNotBlank()) {
-                coil.compose.AsyncImage(
-                    model = event.imageUrl,
-                    contentDescription = "Event banner for ${event.title}",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+            coil.compose.AsyncImage(
+                model = displayBannerUrl,
+                contentDescription = "Event banner for ${event.title}",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

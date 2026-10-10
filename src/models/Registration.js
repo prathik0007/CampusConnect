@@ -16,7 +16,8 @@ const registrationSchema = new mongoose.Schema(
     },
     ticketCode: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
     status: {
       type: String,
@@ -32,6 +33,13 @@ const registrationSchema = new mongoose.Schema(
       type: String,
       enum: ['PRESENT', 'ABSENT', 'PENDING'],
       default: 'PENDING'
+    },
+    checkInTime: {
+      type: Date
+    },
+    checkedInBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   },
   {
@@ -40,6 +48,7 @@ const registrationSchema = new mongoose.Schema(
 );
 
 registrationSchema.index({ eventId: 1, studentId: 1 });
+registrationSchema.index({ eventId: 1, ticketCode: 1 });
 
 registrationSchema.set('toJSON', {
   transform: (doc, ret) => {

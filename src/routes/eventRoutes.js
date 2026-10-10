@@ -11,7 +11,8 @@ const {
   registerForEvent,
   cancelRegistration,
   getEventAttendees,
-  updateAttendeeStatus
+  updateAttendeeStatus,
+  checkInAttendee
 } = require('../controllers/registrationController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/role');
@@ -24,9 +25,10 @@ router.get('/:id', getEventById);
 router.post('/:id/register', protect, registerForEvent);
 router.delete('/:id/register', protect, cancelRegistration);
 
-// Organizer attendee routes
+// Organizer attendee & QR check-in routes
 router.get('/:id/attendees', protect, authorize('ORGANIZER'), getEventAttendees);
 router.patch('/:id/attendees/:studentId', protect, authorize('ORGANIZER'), updateAttendeeStatus);
+router.post('/:id/checkin', protect, authorize('ORGANIZER'), checkInAttendee);
 
 // Protected Organizer event management routes
 router.post('/', protect, authorize('ORGANIZER'), createEvent);

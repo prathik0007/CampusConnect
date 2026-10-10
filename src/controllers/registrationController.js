@@ -218,7 +218,8 @@ const getEventAttendees = async (req, res) => {
         ticketCode: reg.ticketCode,
         status: reg.status,
         attended: reg.attended,
-        attendanceStatus: reg.attendanceStatus
+        attendanceStatus: reg.attendanceStatus,
+        checkInTime: reg.checkInTime
       };
     });
 
@@ -269,6 +270,11 @@ const updateAttendeeStatus = async (req, res) => {
       registration.attendanceStatus = registration.attended ? 'PRESENT' : 'ABSENT';
     }
 
+    if (registration.attended && !registration.checkInTime) {
+      registration.checkInTime = new Date();
+      registration.checkedInBy = req.user._id;
+    }
+
     await registration.save();
 
     const student = registration.studentId;
@@ -288,7 +294,8 @@ const updateAttendeeStatus = async (req, res) => {
       ticketCode: registration.ticketCode,
       status: registration.status,
       attended: registration.attended,
-      attendanceStatus: registration.attendanceStatus
+      attendanceStatus: registration.attendanceStatus,
+      checkInTime: registration.checkInTime
     };
 
     return res.status(200).json(responsePayload);
@@ -301,10 +308,131 @@ const updateAttendeeStatus = async (req, res) => {
   }
 };
 
+const checkInAttendee = async (req, res) => {
+  try {
+    const { id: eventId } = req.params;
+    const { ticketCode, qrCode } = req.body;
+    const targetCode = (ticketCode || qrCode || '').trim();
+
+    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+      return res.status(400).json({
+        message: 'Invalid event ID format.',
+        status: 'ERROR'
+      });
+    }
+
+    if (!targetCode) {
+      return res.status(400).json({
+        message: 'Ticket code is required for check-in.',
+        status: 'ERROR'
+      });
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({
+        message: 'Event not found.',
+        status: 'ERROR'
+      });
+    }
+
+    if (event.organizerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: 'Unauthorized: You can only check in attendees for your own events.',
+        status: 'ERROR'
+      });
+    }
+
+    const registration = await Registration.findOne({
+      eventId,
+      ticketCode: targetCode
+    }).populate('studentId', 'name email');
+
+    if (!registration) {
+      return res.status(404).json({
+        message: 'Invalid ticket code. No registration record found for this event.',
+        status: 'ERROR'
+      });
+    }
+
+    if (registration.status === 'CANCELLED') {
+      return res.status(400).json({
+        message: 'Check-in Rejected: Registration for this event was cancelled.',
+        status: 'ERROR'
+      });
+    }
+
+    const student = registration.studentId;
+    const studentName = student ? student.name : 'Student';
+    const studentEmail = student ? student.email : 'student@campusconnect.com';
+
+    if (registration.attended || registration.attendanceStatus === 'PRESENT') {
+      const totalRegistered = await Registration.countDocuments({ eventId, status: 'CONFIRMED' });
+      const totalCheckedIn = await Registration.countDocuments({ eventId, status: 'CONFIRMED', attended: true });
+
+      return res.status(409).json({
+        message: 'Attendee Already Checked In',
+        status: 'ALREADY_CHECKED_IN',
+        attendee: {
+          id: registration._id.toString(),
+          studentName,
+          studentEmail,
+          ticketCode: registration.ticketCode,
+          checkInTime: registration.checkInTime || registration.updatedAt
+        },
+        event: {
+          id: event._id.toString(),
+          title: event.title
+        },
+        stats: {
+          totalRegistered,
+          totalCheckedIn
+        }
+      });
+    }
+
+    registration.attended = true;
+    registration.attendanceStatus = 'PRESENT';
+    registration.checkInTime = new Date();
+    registration.checkedInBy = req.user._id;
+    await registration.save();
+
+    const totalRegistered = await Registration.countDocuments({ eventId, status: 'CONFIRMED' });
+    const totalCheckedIn = await Registration.countDocuments({ eventId, status: 'CONFIRMED', attended: true });
+
+    return res.status(200).json({
+      message: 'Check-in successful!',
+      status: 'SUCCESS',
+      attendee: {
+        id: registration._id.toString(),
+        studentName,
+        studentEmail,
+        ticketCode: registration.ticketCode,
+        checkInTime: registration.checkInTime
+      },
+      event: {
+        id: event._id.toString(),
+        title: event.title
+      },
+      stats: {
+        totalRegistered,
+        totalCheckedIn
+      }
+    });
+  } catch (error) {
+    console.error('CheckInAttendee Error:', error);
+    return res.status(500).json({
+      message: 'Server error during check-in.',
+      status: 'ERROR'
+    });
+  }
+};
+
 module.exports = {
   registerForEvent,
   cancelRegistration,
   getMyRegistrations,
   getEventAttendees,
-  updateAttendeeStatus
+  updateAttendeeStatus,
+  checkInAttendee
 };

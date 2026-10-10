@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prathik.campusconnect.data.DummyData
 import com.prathik.campusconnect.data.remote.dto.AttendeeDto
+import com.prathik.campusconnect.data.remote.dto.CheckInResponse
 import com.prathik.campusconnect.data.repository.RegistrationRepository
 import com.prathik.campusconnect.model.Registration
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -163,6 +164,30 @@ class RegistrationViewModel(
                 },
                 onFailure = { exception ->
                     _uiState.value = _uiState.value.copy(actionError = exception.message ?: "Failed to update attendance.")
+                }
+            )
+        }
+    }
+
+    fun checkInAttendee(
+        eventId: String,
+        ticketCode: String,
+        onResult: (CheckInResponse?, String?) -> Unit
+    ) {
+        if (registrationRepository == null) {
+            onResult(null, "Repository not initialized.")
+            return
+        }
+
+        viewModelScope.launch {
+            val result = registrationRepository.checkInAttendee(eventId, ticketCode)
+            result.fold(
+                onSuccess = { res ->
+                    loadEventAttendees(eventId)
+                    onResult(res, null)
+                },
+                onFailure = { err ->
+                    onResult(null, err.message ?: "Check-in failed.")
                 }
             )
         }

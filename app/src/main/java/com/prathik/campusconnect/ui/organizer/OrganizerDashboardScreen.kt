@@ -16,7 +16,9 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +43,7 @@ fun OrganizerDashboardScreen(
     onNavigateToCreateEvent: () -> Unit,
     onNavigateToMyEvents: () -> Unit,
     onNavigateToAttendees: () -> Unit,
+    onNavigateToQrScanner: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalEvents = uiState.events.count { it.organizerId == user.id || true }
@@ -79,7 +82,7 @@ fun OrganizerDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Manage your campus events, track student attendance, and publish new events.",
+                        text = "Manage your campus events, scan attendee QR tickets, and publish new events.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -88,7 +91,7 @@ fun OrganizerDashboardScreen(
         }
 
         item {
-            // Dashboard Stat Cards Placeholder
+            // Dashboard Stat Cards
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -126,7 +129,7 @@ fun OrganizerDashboardScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = onNavigateToCreateEvent,
@@ -134,8 +137,21 @@ fun OrganizerDashboardScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(imageVector = Icons.Default.AddCircle, contentDescription = null)
-                    Spacer(modifier = Modifier.padding(4.dp))
-                    Text("Create Event")
+                    Spacer(modifier = Modifier.padding(2.dp))
+                    Text("Create")
+                }
+
+                Button(
+                    onClick = onNavigateToQrScanner,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = null)
+                    Spacer(modifier = Modifier.padding(2.dp))
+                    Text("QR Scan")
                 }
 
                 OutlinedButton(
@@ -144,7 +160,7 @@ fun OrganizerDashboardScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(imageVector = Icons.Default.People, contentDescription = null)
-                    Spacer(modifier = Modifier.padding(4.dp))
+                    Spacer(modifier = Modifier.padding(2.dp))
                     Text("Attendees")
                 }
             }

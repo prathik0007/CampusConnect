@@ -12,5 +12,6 @@ data class Registration(
     val studentId: String,
     val ticketCode: String,
     val status: RegistrationStatus = RegistrationStatus.CONFIRMED,
-    val attended: Boolean = false
+    val attended: Boolean = false,
+    val event: Event? = null
 )

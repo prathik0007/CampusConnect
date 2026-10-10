@@ -1,6 +1,7 @@
 package com.prathik.campusconnect.ui.student
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,18 +20,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,11 +48,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.prathik.campusconnect.model.Registration
 import com.prathik.campusconnect.model.User
 import com.prathik.campusconnect.ui.components.EmptyStateView
+import com.prathik.campusconnect.util.QrCodeUtils
 import com.prathik.campusconnect.viewmodel.EventViewModel
 import com.prathik.campusconnect.viewmodel.RegistrationViewModel
 
@@ -62,9 +71,110 @@ fun StudentTicketsScreen(
     val eventUiState by eventViewModel.uiState.collectAsState()
 
     var expandedTicketId by remember { mutableStateOf<String?>(null) }
+    var selectedQrTicket by remember { mutableStateOf<Registration?>(null) }
 
     LaunchedEffect(Unit) {
         registrationViewModel.loadMyRegistrations()
+    }
+
+    if (selectedQrTicket != null) {
+        val targetReg = selectedQrTicket!!
+        val resolvedEvent = targetReg.event ?: eventUiState.events.find { it.id == targetReg.eventId }
+        val qrBitmap = remember(targetReg.ticketCode) {
+            QrCodeUtils.generateQrCodeBitmap(targetReg.ticketCode, 512)
+        }
+
+        AlertDialog(
+            onDismissRequest = { selectedQrTicket = null },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Official Entry Ticket",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { selectedQrTicket = null }) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = resolvedEvent?.title ?: "Campus Event",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (qrBitmap != null) {
+                        Image(
+                            bitmap = qrBitmap.asImageBitmap(),
+                            contentDescription = "QR Code Ticket for ${targetReg.ticketCode}",
+                            modifier = Modifier
+                                .size(220.dp)
+                                .background(androidx.compose.ui.graphics.Color.White)
+                                .padding(8.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = null,
+                            modifier = Modifier.size(160.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = targetReg.ticketCode,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Attendee: ${user.name}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        text = "Present this QR code to the event organizer for check-in entry.",
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { selectedQrTicket = null },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Done")
+                }
+            }
+        )
     }
 
     Column(
@@ -115,19 +225,22 @@ fun StudentTicketsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(regUiState.myRegistrations, key = { it.id }) { registration ->
-                        val event = eventUiState.events.find { it.id == registration.eventId }
+                        val resolvedEvent = registration.event ?: eventUiState.events.find { it.id == registration.eventId }
                         val isExpanded = expandedTicketId == registration.id
 
                         TicketCardItem(
                             registration = registration,
-                            eventTitle = event?.title ?: "Campus Event",
-                            eventDate = event?.startDate ?: "TBD",
-                            eventVenue = event?.location ?: "Campus Venue",
+                            eventTitle = resolvedEvent?.title ?: "Campus Event",
+                            eventDate = resolvedEvent?.startDate ?: "TBD",
+                            eventVenue = resolvedEvent?.location ?: "Campus Venue",
                             studentName = user.name,
                             studentEmail = user.email,
                             isExpanded = isExpanded,
                             onExpandToggle = {
                                 expandedTicketId = if (isExpanded) null else registration.id
+                            },
+                            onViewQrClick = {
+                                selectedQrTicket = registration
                             }
                         )
                     }
@@ -146,7 +259,8 @@ fun TicketCardItem(
     studentName: String,
     studentEmail: String,
     isExpanded: Boolean,
-    onExpandToggle: () -> Unit
+    onExpandToggle: () -> Unit,
+    onViewQrClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -236,6 +350,22 @@ fun TicketCardItem(
                 )
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onViewQrClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCode2,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("View QR Code Ticket")
+            }
+
             AnimatedVisibility(visible = isExpanded) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -257,10 +387,11 @@ fun TicketCardItem(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Polished Ticket Code Representation Box
+                    // Interactive QR Ticket Trigger
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onViewQrClick() }
                             .background(
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                                 shape = RoundedCornerShape(12.dp)
@@ -271,7 +402,7 @@ fun TicketCardItem(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 imageVector = Icons.Default.QrCode2,
-                                contentDescription = "Ticket Code Verification",
+                                contentDescription = "Tap to show QR Ticket",
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -283,7 +414,7 @@ fun TicketCardItem(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Show this ticket code at venue entry",
+                                text = "Tap to view full QR Ticket for venue entry",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

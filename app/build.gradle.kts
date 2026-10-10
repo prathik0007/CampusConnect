@@ -68,6 +68,15 @@ android {
     }
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.camera.core.ExperimentalGetImage"
+        )
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -90,6 +99,14 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.firebase.messaging.ktx)
+
+    // QR Code & CameraX Barcode Scanner
+    implementation(libs.zxing.core)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

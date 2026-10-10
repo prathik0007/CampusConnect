@@ -1,6 +1,8 @@
 package com.prathik.campusconnect.data.remote
 
 import com.prathik.campusconnect.data.remote.dto.AttendeeDto
+import com.prathik.campusconnect.data.remote.dto.CheckInRequest
+import com.prathik.campusconnect.data.remote.dto.CheckInResponse
 import com.prathik.campusconnect.data.remote.dto.RegistrationDto
 import com.prathik.campusconnect.data.remote.dto.RegistrationResponse
 import com.prathik.campusconnect.data.remote.dto.UpdateAttendanceRequest
@@ -38,4 +40,10 @@ interface RegistrationApiService {
         @Path("studentId") studentId: String,
         @Body request: UpdateAttendanceRequest
     ): Response<AttendeeDto>
+
+    @POST("api/events/{id}/checkin")
+    suspend fun checkInAttendee(
+        @Path("id") eventId: String,
+        @Body request: CheckInRequest
+    ): Response<CheckInResponse>
 }

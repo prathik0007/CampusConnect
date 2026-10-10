@@ -1,0 +1,32 @@
+package com.prathik.campusconnect.util
+
+import android.graphics.Bitmap
+import android.graphics.Color
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.common.BitMatrix
+
+object QrCodeUtils {
+    fun generateQrCodeBitmap(text: String, sizePixels: Int = 512): Bitmap? {
+        if (text.isBlank()) return null
+        return try {
+            val bitMatrix: BitMatrix = MultiFormatWriter().encode(
+                text,
+                BarcodeFormat.QR_CODE,
+                sizePixels,
+                sizePixels
+            )
+            val width = bitMatrix.width
+            val height = bitMatrix.height
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                }
+            }
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
+    }
+}

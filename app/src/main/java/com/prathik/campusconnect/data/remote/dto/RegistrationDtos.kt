@@ -46,6 +46,7 @@ data class RegistrationDto(
             else -> RegistrationStatus.CONFIRMED
         }
         val isAttended = attended == true || attendanceStatus.equals("PRESENT", ignoreCase = true)
+        val domainEvent = event?.toDomainEvent()
 
         return Registration(
             id = finalId,
@@ -53,7 +54,8 @@ data class RegistrationDto(
             studentId = finalStudentId,
             ticketCode = finalTicketCode,
             status = parsedStatus,
-            attended = isAttended
+            attended = isAttended,
+            event = domainEvent
         )
     }
 }
@@ -124,4 +126,34 @@ data class AttendeeDto(
 data class UpdateAttendanceRequest(
     val attended: Boolean? = null,
     val attendanceStatus: String? = null
+)
+
+data class CheckInRequest(
+    val ticketCode: String
+)
+
+data class CheckInResponse(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("attendee") val attendee: CheckInAttendeeData? = null,
+    @SerializedName("event") val event: CheckInEventData? = null,
+    @SerializedName("stats") val stats: CheckInStatsData? = null
+)
+
+data class CheckInAttendeeData(
+    val id: String? = null,
+    val studentName: String? = null,
+    val studentEmail: String? = null,
+    val ticketCode: String? = null,
+    val checkInTime: String? = null
+)
+
+data class CheckInEventData(
+    val id: String? = null,
+    val title: String? = null
+)
+
+data class CheckInStatsData(
+    val totalRegistered: Int? = null,
+    val totalCheckedIn: Int? = null
 )

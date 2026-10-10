@@ -33,6 +33,7 @@ fun OrganizerMainScreen(
     var currentScreen by remember { mutableStateOf<Screen>(Screen.OrganizerDashboard) }
     var editingEvent by remember { mutableStateOf<Event?>(null) }
     var isNotificationCenterOpen by remember { mutableStateOf(false) }
+    var isQrScannerOpen by remember { mutableStateOf(false) }
 
     val uiState by eventViewModel.uiState.collectAsState()
     val notifUiState by notificationViewModel.uiState.collectAsState()
@@ -44,6 +45,13 @@ fun OrganizerMainScreen(
             onNavigateToEvent = {
                 isNotificationCenterOpen = false
             },
+            modifier = modifier
+        )
+    } else if (isQrScannerOpen) {
+        OrganizerQrScannerScreen(
+            eventViewModel = eventViewModel,
+            registrationViewModel = registrationViewModel,
+            onBackClick = { isQrScannerOpen = false },
             modifier = modifier
         )
     } else if (editingEvent != null) {
@@ -80,6 +88,7 @@ fun OrganizerMainScreen(
                     onNavigateToCreateEvent = { currentScreen = Screen.CreateEvent },
                     onNavigateToMyEvents = { currentScreen = Screen.OrganizerEvents },
                     onNavigateToAttendees = { currentScreen = Screen.Attendees },
+                    onNavigateToQrScanner = { isQrScannerOpen = true },
                     modifier = screenModifier
                 )
                 Screen.OrganizerEvents -> OrganizerEventsScreen(
@@ -128,6 +137,7 @@ fun OrganizerMainScreen(
                     onNavigateToCreateEvent = { currentScreen = Screen.CreateEvent },
                     onNavigateToMyEvents = { currentScreen = Screen.OrganizerEvents },
                     onNavigateToAttendees = { currentScreen = Screen.Attendees },
+                    onNavigateToQrScanner = { isQrScannerOpen = true },
                     modifier = screenModifier
                 )
             }

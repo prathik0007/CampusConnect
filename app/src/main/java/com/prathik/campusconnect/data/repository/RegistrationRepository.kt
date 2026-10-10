@@ -3,6 +3,8 @@ package com.prathik.campusconnect.data.repository
 import com.google.gson.Gson
 import com.prathik.campusconnect.data.remote.RegistrationApiService
 import com.prathik.campusconnect.data.remote.dto.AttendeeDto
+import com.prathik.campusconnect.data.remote.dto.CheckInRequest
+import com.prathik.campusconnect.data.remote.dto.CheckInResponse
 import com.prathik.campusconnect.data.remote.dto.UpdateAttendanceRequest
 import com.prathik.campusconnect.model.Registration
 import com.prathik.campusconnect.model.RegistrationStatus
@@ -21,7 +23,6 @@ class RegistrationRepository(
                 if (domainReg != null) {
                     Result.success(domainReg)
                 } else {
-                    // Fallback registration creation if server returned success HTTP 200 without payload
                     val fallbackReg = Registration(
                         id = "reg_${System.currentTimeMillis()}",
                         eventId = eventId,
@@ -123,6 +124,36 @@ class RegistrationRepository(
         }
     }
 
+    suspend fun checkInAttendee(eventId: String, ticketCode: String): Result<CheckInResponse> {
+        return try {
+            val response = apiService.checkInAttendee(eventId, CheckInRequest(ticketCode))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Result.success(body)
+                } else {
+                    Result.success(
+                        CheckInResponse(
+                            message = "Check-in successful!",
+                            status = "SUCCESS"
+                        )
+                    )
+                }
+            } else {
+                val errorMsg = parseError(response.errorBody()?.string(), response.code())
+                if (response.code() == 409) {
+                    Result.failure(Exception("Attendee Already Checked In"))
+                } else {
+                    Result.failure(Exception(errorMsg))
+                }
+            }
+        } catch (e: IOException) {
+            Result.failure(Exception("Network error. Could not connect to check-in server."))
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Failed to perform check-in."))
+        }
+    }
+
     private fun parseError(errorJson: String?, statusCode: Int): String {
         if (errorJson.isNullOrBlank()) {
             return when (statusCode) {
@@ -130,7 +161,7 @@ class RegistrationRepository(
                 401 -> "Session expired. Please log in again."
                 403 -> "You do not have permission to modify this registration."
                 404 -> "Event or registration record not found."
-                409 -> "You are already registered for this event."
+                409 -> "Attendee already checked in."
                 500 -> "Server error processing registration request."
                 else -> "HTTP $statusCode error."
             }

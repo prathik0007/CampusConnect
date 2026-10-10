@@ -49,7 +49,9 @@ class NotificationViewModel(
         if (notificationRepository == null) return
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            if (_uiState.value.notifications.isEmpty()) {
+                _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            }
             val result = notificationRepository.getNotifications()
             result.fold(
                 onSuccess = { list ->
@@ -63,7 +65,7 @@ class NotificationViewModel(
                 onFailure = { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = exception.message ?: "Failed to load notifications."
+                        errorMessage = if (_uiState.value.notifications.isEmpty()) exception.message ?: "Failed to load notifications." else null
                     )
                 }
             )
@@ -73,74 +75,37 @@ class NotificationViewModel(
     fun markAsRead(id: String, onNavigateToEvent: (String?) -> Unit = {}) {
         val targetNotif = _uiState.value.notifications.find { it.id == id }
 
-        if (notificationRepository == null) {
-            val updated = _uiState.value.notifications.map {
-                if (it.id == id) it.copy(isRead = true) else it
-            }
-            _uiState.value = _uiState.value.copy(
-                notifications = updated,
-                unreadCount = updated.count { !it.isRead }
-            )
-            onNavigateToEvent(targetNotif?.eventId)
-            return
+        // 1. Immediately update local UI state so it shows as read instantly
+        val updated = _uiState.value.notifications.map {
+            if (it.id == id) it.copy(isRead = true) else it
         }
+        _uiState.value = _uiState.value.copy(
+            notifications = updated,
+            unreadCount = updated.count { !it.isRead }
+        )
 
-        viewModelScope.launch {
-            val result = notificationRepository.markNotificationAsRead(id)
-            result.fold(
-                onSuccess = { updatedNotif ->
-                    val updated = _uiState.value.notifications.map {
-                        if (it.id == id) updatedNotif else it
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        notifications = updated,
-                        unreadCount = updated.count { !it.isRead }
-                    )
-                    onNavigateToEvent(updatedNotif.eventId)
-                },
-                onFailure = {
-                    // Update local state fallback if server mark fails
-                    val updated = _uiState.value.notifications.map {
-                        if (it.id == id) it.copy(isRead = true) else it
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        notifications = updated,
-                        unreadCount = updated.count { !it.isRead }
-                    )
-                    onNavigateToEvent(targetNotif?.eventId)
-                }
-            )
+        // 2. Trigger instant navigation to the target event immediately
+        onNavigateToEvent(targetNotif?.eventId)
+
+        // 3. Perform background API call to update backend database
+        if (notificationRepository != null) {
+            viewModelScope.launch {
+                notificationRepository.markNotificationAsRead(id)
+            }
         }
     }
 
     fun markAllAsRead() {
-        if (notificationRepository == null) {
-            val updated = _uiState.value.notifications.map { it.copy(isRead = true) }
-            _uiState.value = _uiState.value.copy(
-                notifications = updated,
-                unreadCount = 0
-            )
-            return
-        }
+        val updated = _uiState.value.notifications.map { it.copy(isRead = true) }
+        _uiState.value = _uiState.value.copy(
+            notifications = updated,
+            unreadCount = 0
+        )
 
-        viewModelScope.launch {
-            val result = notificationRepository.markAllNotificationsAsRead()
-            result.fold(
-                onSuccess = {
-                    val updated = _uiState.value.notifications.map { it.copy(isRead = true) }
-                    _uiState.value = _uiState.value.copy(
-                        notifications = updated,
-                        unreadCount = 0
-                    )
-                },
-                onFailure = {
-                    val updated = _uiState.value.notifications.map { it.copy(isRead = true) }
-                    _uiState.value = _uiState.value.copy(
-                        notifications = updated,
-                        unreadCount = 0
-                    )
-                }
-            )
+        if (notificationRepository != null) {
+            viewModelScope.launch {
+                notificationRepository.markAllNotificationsAsRead()
+            }
         }
     }
 }

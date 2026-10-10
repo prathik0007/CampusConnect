@@ -18,6 +18,14 @@ class AuthRepository(
         return authDataStore.getToken()
     }
 
+    suspend fun getCachedUser(): User? {
+        return authDataStore.getCachedUser()
+    }
+
+    suspend fun saveUserCache(user: User) {
+        authDataStore.saveUserCache(user)
+    }
+
     suspend fun login(email: String, password: String): Result<User> {
         return try {
             val response = apiService.login(LoginRequest(email = email, password = password))
@@ -27,7 +35,7 @@ class AuthRepository(
                 val user = body?.user?.toDomainUser()
 
                 if (!token.isNullOrBlank()) {
-                    authDataStore.saveToken(token, user?.id)
+                    authDataStore.saveToken(token, user)
                 }
 
                 if (user != null) {
@@ -64,7 +72,7 @@ class AuthRepository(
                 val user = body?.user?.toDomainUser()
 
                 if (!token.isNullOrBlank()) {
-                    authDataStore.saveToken(token, user?.id)
+                    authDataStore.saveToken(token, user)
                 }
 
                 if (user != null) {
@@ -93,6 +101,7 @@ class AuthRepository(
                 val body = response.body()
                 val user = body?.toDomainUser()
                 if (user != null) {
+                    authDataStore.saveUserCache(user)
                     Result.success(user)
                 } else {
                     Result.failure(Exception("Invalid response format from user session"))

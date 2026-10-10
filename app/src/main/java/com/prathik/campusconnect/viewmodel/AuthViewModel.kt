@@ -38,20 +38,36 @@ class AuthViewModel(
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             val token = authRepository.getStoredToken()
+            val cachedUser = authRepository.getCachedUser()
+
             if (token.isNullOrBlank()) {
                 _authState.value = AuthState.Unauthenticated
-            } else {
-                val result = authRepository.getCurrentUser()
-                result.fold(
-                    onSuccess = { user ->
-                        _authState.value = AuthState.Authenticated(user)
-                    },
-                    onFailure = {
+                return@launch
+            }
+
+            // Restore authenticated session immediately from local cached user
+            if (cachedUser != null) {
+                _authState.value = AuthState.Authenticated(cachedUser)
+            }
+
+            // Verify/refresh user profile in background
+            val result = authRepository.getCurrentUser()
+            result.fold(
+                onSuccess = { freshUser ->
+                    authRepository.saveUserCache(freshUser)
+                    _authState.value = AuthState.Authenticated(freshUser)
+                },
+                onFailure = { exception ->
+                    val errMsg = exception.message ?: ""
+                    if (errMsg.contains("401") || errMsg.contains("unauthorized", ignoreCase = true)) {
                         authRepository.logout()
                         _authState.value = AuthState.Unauthenticated
+                    } else if (cachedUser == null) {
+                        _authState.value = AuthState.Unauthenticated
                     }
-                )
-            }
+                    // If network error/timeout on cold start, retain cachedUser authentication!
+                }
+            )
         }
     }
 

@@ -42,6 +42,10 @@ fun StudentMainScreen(
     val regUiState by registrationViewModel.uiState.collectAsState()
     val notifUiState by notificationViewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) {
+        eventViewModel.loadEvents()
+    }
+
     LaunchedEffect(regUiState.actionMessage) {
         regUiState.actionMessage?.let { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()

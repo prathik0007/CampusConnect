@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -181,13 +183,22 @@ fun EventCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val displayBannerUrl = event.imageUrl.ifBlank {
-        when (event.category.lowercase()) {
-            "tech" -> "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80"
-            "cultural" -> "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"
-            "workshops", "workshop" -> "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
-            "sports" -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80"
-            else -> "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=800&q=80"
+    val displayBannerUrl = androidx.compose.runtime.remember(event.imageUrl, event.category) {
+        var url = event.imageUrl.trim()
+        if (url.startsWith("http://")) {
+            url = url.replace("http://", "https://")
+        }
+        val isTestPixel = url.contains("noaqtakdpxefmuezltyl") || url.contains("jsrzgz5kxpdxl4gzt5vi") || url.contains("dummy")
+        if (url.isBlank() || isTestPixel) {
+            when (event.category.trim().lowercase()) {
+                "tech" -> "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80"
+                "cultural" -> "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"
+                "workshops", "workshop" -> "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
+                "sports" -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80"
+                else -> "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=800&q=80"
+            }
+        } else {
+            url
         }
     }
 
@@ -206,10 +217,42 @@ fun EventCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            coil.compose.AsyncImage(
-                model = displayBannerUrl,
+            coil.compose.SubcomposeAsyncImage(
+                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(displayBannerUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = "Event banner for ${event.title}",
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                loading = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                error = {
+                    val fallbackUrl = when (event.category.trim().lowercase()) {
+                        "tech" -> "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80"
+                        "cultural" -> "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"
+                        "workshops", "workshop" -> "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80"
+                        "sports" -> "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80"
+                        else -> "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=800&q=80"
+                    }
+                    coil.compose.AsyncImage(
+                        model = fallbackUrl,
+                        contentDescription = "Event banner fallback",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
